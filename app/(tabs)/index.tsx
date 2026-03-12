@@ -4,10 +4,12 @@ import { StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   const [steps, setSteps] = useState(0);
+  // Non-empty status means we render a message instead of the step count.
   const [status, setStatus] = useState('Loading...');
 
   useEffect(() => {
     const getSteps = async () => {
+      // Ask for motion/fitness permission before reading pedometer data.
       const { granted } = await Pedometer.requestPermissionsAsync();
       
       if (!granted) {
@@ -21,6 +23,7 @@ export default function HomeScreen() {
 
       const result = await Pedometer.getStepCountAsync(start, end);
       setSteps(result.steps);
+      // Clear status so the numeric step value is shown.
       setStatus('');
     };
 
