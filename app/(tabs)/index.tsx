@@ -43,8 +43,29 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' },
-  label: { color: '#4e5653', fontSize: 14, letterSpacing: 3, marginBottom: 12 },
-  steps: { color: '#08b464', fontSize: 80, fontWeight: 'bold' },
-  status: { color: '#ffffff', fontSize: 18 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+    gap: 8,
+  },
+  label: {
+    color: '#888888',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+  },
+  steps: {
+    color: '#04ff36',
+    fontSize: 80,
+    fontWeight: 'bold',
+    letterSpacing: -2,
+  },
+  status: {
+    color: '#666666',
+    fontSize: 16,
+    fontStyle: 'italic',
+  },
 });
