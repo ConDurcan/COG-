@@ -1,7 +1,7 @@
 // render: mounts a component into a virtual DOM so we can query its output.
 // waitFor: retries an assertion on a short interval until it passes or times out —
 //          useful when state updates happen asynchronously (e.g. after an awaited API call).
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 // PermissionStatus is an enum (GRANTED, DENIED, …) used by all Expo permissions APIs.
 import { PermissionStatus } from 'expo-modules-core';
@@ -106,5 +106,38 @@ describe('HomeScreen', () => {
     expect(await findByText('1,234')).toBeTruthy();
     // queryByText returns null instead of throwing when the element is absent.
     expect(queryByText('Loading...')).toBeNull();
+  });
+
+  it('shows default steps left based on default goal', async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
+    pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
+
+    const { findByText } = render(<HomeScreen />);
+
+    expect(await findByText('8,766')).toBeTruthy();
+  });
+
+  it('updates steps left when user changes goal', async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
+    pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
+
+    const { findByLabelText, findByText } = render(<HomeScreen />);
+
+    const input = await findByLabelText('Step goal');
+    fireEvent.changeText(input, '9000');
+
+    expect(await findByText('7,766')).toBeTruthy();
+  });
+
+  it('never shows negative steps left', async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
+    pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
+
+    const { findByLabelText, findByText } = render(<HomeScreen />);
+
+    const input = await findByLabelText('Step goal');
+    fireEvent.changeText(input, '1000');
+
+    expect(await findByText('0')).toBeTruthy();
   });
 });
