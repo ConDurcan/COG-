@@ -74,6 +74,14 @@ export default function HomeScreen() {
           <ThemedText type="defaultSemiBold">app-example</ThemedText>.
         </ThemedText>
       </ThemedView>
+      <ThemedView style={styles.stepContainer}>
+        <Link href="/League">
+          <ThemedText type="subtitle">Create a League</ThemedText>
+        </Link>
+        <ThemedText>
+          Tap here to go to the League Creator page.
+        </ThemedText>
+      </ThemedView>
     </ParallaxScrollView>
   );
 }
