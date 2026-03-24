@@ -1,4 +1,4 @@
-{
+﻿{
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
@@ -13,5 +13,6 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+  ],
+  "exclude": ["node_modules"]
 }

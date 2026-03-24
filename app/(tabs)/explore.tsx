@@ -1,112 +1,132 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Pedometer } from "expo-sensors";
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+export default function ActivityScreen() {
+  const [steps, setSteps] = useState(0);
+  const [stepGoalInput, setStepGoalInput] = useState("10000");
+  const [status, setStatus] = useState("Loading...");
 
-export default function TabTwoScreen() {
+  const parsedStepGoal = Number.parseInt(stepGoalInput, 10);
+  const stepGoal =
+    Number.isFinite(parsedStepGoal) && parsedStepGoal >= 0 ? parsedStepGoal : 0;
+  const stepsLeft = Math.max(stepGoal - steps, 0);
+
+  useEffect(() => {
+    const getSteps = async () => {
+      const { granted } = await Pedometer.requestPermissionsAsync();
+
+      if (!granted) {
+        setStatus("Permission denied");
+        return;
+      }
+
+      const end = new Date();
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+
+      const result = await Pedometer.getStepCountAsync(start, end);
+      setSteps(result.steps);
+      setStatus("");
+    };
+
+    void getSteps();
+  }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <View style={styles.container}>
+      <Text style={styles.label}>TODAY'S STEPS</Text>
+      {status ? (
+        <Text style={styles.status}>{status}</Text>
+      ) : (
+        <Text style={styles.steps}>{steps.toLocaleString()}</Text>
+      )}
+
+      <View style={styles.goalSection}>
+        <Text style={styles.goalLabel}>STEP GOAL</Text>
+        <TextInput
+          accessibilityLabel="Step goal"
+          keyboardType="number-pad"
+          value={stepGoalInput}
+          onChangeText={(text) => {
+            const numericText = text.replace(/[^0-9]/g, "");
+            setStepGoalInput(numericText);
+          }}
+          placeholder="Enter step goal"
+          placeholderTextColor="#5a5a5a"
+          style={styles.goalInput}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+        <Text style={styles.stepsLeftLabel}>STEPS LEFT</Text>
+        <Text style={styles.stepsLeftValue}>{stepsLeft.toLocaleString()}</Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0a0a0a",
     gap: 8,
+  },
+  label: {
+    color: "#888888",
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 4,
+    textTransform: "uppercase",
+  },
+  steps: {
+    color: "#04ff36",
+    fontSize: 80,
+    fontWeight: "bold",
+    letterSpacing: -2,
+  },
+  status: {
+    color: "#666666",
+    fontSize: 16,
+    fontStyle: "italic",
+  },
+  goalSection: {
+    marginTop: 24,
+    alignItems: "center",
+    width: "80%",
+    maxWidth: 320,
+    gap: 8,
+  },
+  goalLabel: {
+    color: "#888888",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 3,
+    textTransform: "uppercase",
+  },
+  goalInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#333333",
+    borderRadius: 10,
+    color: "#ffffff",
+    fontSize: 26,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  stepsLeftLabel: {
+    marginTop: 8,
+    color: "#888888",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 3,
+    textTransform: "uppercase",
+  },
+  stepsLeftValue: {
+    color: "#ff9a04",
+    fontSize: 42,
+    fontWeight: "bold",
+    letterSpacing: -1,
   },
 });

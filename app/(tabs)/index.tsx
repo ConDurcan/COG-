@@ -1,3 +1,4 @@
+import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, TextInput } from "react-native";
 
@@ -17,20 +18,27 @@ export default function HomeScreen() {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("Ready");
-  const [storedAccountsJson, setStoredAccountsJson] = useState("[]");
+  const [status, setStatus] = useState("Log in to start tracking your activity.");
+  const [redirectToActivity, setRedirectToActivity] = useState(false);
 
   useEffect(() => {
     const restore = async () => {
       const restored = await AuthService.restoreUser();
-      if (restored) {
-        setUser(restored);
-        setStatus(`Restored session for ${restored.email}`);
+      if (!restored) {
+        return;
       }
+
+      setUser(restored);
+      setStatus(`Welcome back ${restored.displayName}`);
+      setRedirectToActivity(true);
     };
 
     void restore();
   }, [setUser]);
+
+  const routeToActivity = () => {
+    setRedirectToActivity(true);
+  };
 
   const handleSignup = async () => {
     try {
@@ -43,6 +51,7 @@ export default function HomeScreen() {
       setUser(created);
       setStatus(`Signed up ${created.email}`);
       setPassword("");
+      routeToActivity();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Signup failed");
     }
@@ -54,22 +63,26 @@ export default function HomeScreen() {
       setUser(loggedIn);
       setStatus(`Logged in ${loggedIn.email}`);
       setPassword("");
+      routeToActivity();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Login failed");
     }
   };
 
   const handleLogout = async () => {
-    await AuthService.logout();
-    setUser(null);
-    setStatus("Logged out");
+    try {
+      await AuthService.logout();
+      setUser(null);
+      setStatus("Logged out");
+      setRedirectToActivity(false);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Logout failed");
+    }
   };
 
-  const handleViewStoredAccounts = async () => {
-    const accounts = await AuthService.getStoredAccounts();
-    setStoredAccountsJson(JSON.stringify(accounts, null, 2));
-    setStatus(`Loaded ${accounts.length} stored account(s)`);
-  };
+  if (redirectToActivity && isLoggedIn) {
+    return <Redirect href="/explore" />;
+  }
 
   return (
     <ParallaxScrollView
@@ -84,19 +97,19 @@ export default function HomeScreen() {
       }
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Auth Playground</ThemedText>
+        <ThemedText type="title">Compfit Login</ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.stepContainer}>
+      <ThemedView style={styles.section}>
         <ThemedText type="subtitle">Current Session</ThemedText>
         <ThemedText>
           {isLoggedIn ? `Logged in as: ${user?.email}` : "No user logged in"}
         </ThemedText>
-        <ThemedText>Status: {status}</ThemedText>
+        <ThemedText>{status}</ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Sign Up / Login</ThemedText>
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle">Sign Up Or Log In</ThemedText>
         <TextInput
           placeholder="Email"
           placeholderTextColor={palette.icon}
@@ -113,7 +126,7 @@ export default function HomeScreen() {
           ]}
         />
         <TextInput
-          placeholder="Display name (for signup)"
+          placeholder="Display name (for sign up)"
           placeholderTextColor={palette.icon}
           value={displayName}
           onChangeText={setDisplayName}
@@ -127,7 +140,7 @@ export default function HomeScreen() {
           ]}
         />
         <TextInput
-          placeholder="Password (demo only)"
+          placeholder="Password"
           placeholderTextColor={palette.icon}
           secureTextEntry
           value={password}
@@ -158,24 +171,21 @@ export default function HomeScreen() {
         </ThemedView>
 
         <ThemedView style={styles.buttonRow}>
+          {isLoggedIn ? (
+            <Pressable
+              onPress={routeToActivity}
+              style={[styles.button, { borderColor: palette.icon }]}
+            >
+              <ThemedText type="defaultSemiBold">Go To Activity</ThemedText>
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={handleLogout}
             style={[styles.button, { borderColor: palette.icon }]}
           >
             <ThemedText type="defaultSemiBold">Log Out</ThemedText>
           </Pressable>
-          <Pressable
-            onPress={handleViewStoredAccounts}
-            style={[styles.button, { borderColor: palette.icon }]}
-          >
-            <ThemedText type="defaultSemiBold">View Current Account</ThemedText>
-          </Pressable>
         </ThemedView>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Current Account JSON</ThemedText>
-        <ThemedText style={styles.json}>{storedAccountsJson}</ThemedText>
       </ThemedView>
     </ParallaxScrollView>
   );
@@ -190,7 +200,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     gap: 8,
   },
-  stepContainer: {
+  section: {
     gap: 8,
     marginBottom: 8,
   },
@@ -210,8 +220,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-  },
-  json: {
-    fontSize: 12,
   },
 });
