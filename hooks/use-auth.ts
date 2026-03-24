@@ -1,11 +1,10 @@
 import { AuthContext } from "@/context/auth-context";
 import { useContext } from "react";
 
-// useAuth is the single import every screen/component needs.
-// Calling it gives back: { user, setUser, isLoggedIn }
-//
-// The error below fires if you accidentally use this hook in a component
-// that is NOT wrapped inside <AuthProvider> — it's a safety net.
+// --- Custom hook -------------------------------------------------------------
+// Use this hook as the single entry point for auth context consumption.
+// It returns values such as user, setUser, isLoggedIn, and isHydrating.
+// throws if the hook is used outside AuthProvider so misuse fails fast.
 
 export function useAuth() {
   const context = useContext(AuthContext);

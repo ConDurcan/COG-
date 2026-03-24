@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { UserAccount } from "@/types/user";
 import { User } from "@supabase/supabase-js";
 
-// --- Types for auth methods --------------------------------------------------
+// I keep auth input types here so service method signatures stay explicit.
 
 export interface SignupInput {
   email: string;
@@ -51,9 +51,8 @@ function mapSupabaseUserToUserAccount(user: User): UserAccount {
   };
 }
 
-// --- Auth Service (all pure functions) ----------------------------------------
-// These functions handle saving/loading user data from device storage.
-// In the future, this file is where you'd swap AsyncStorage for a backend API.
+// Centralized Supabase auth calls in this service.
+// This gives screens a single interface for signup, login, restore, and logout.
 
 export const AuthService = {
   // Sign up: create a new account
@@ -113,8 +112,7 @@ export const AuthService = {
     }
   },
 
-  // Supabase does not allow listing all auth users from a client app.
-  // For debugging, return the currently signed-in account (if any).
+  // Get stored accounts: return the current session user in list form for compatibility with caller expectations.
   async getStoredAccounts(): Promise<UserAccount[]> {
     const restored = await this.restoreUser();
     return restored ? [restored] : [];
@@ -133,8 +131,7 @@ export const AuthService = {
     }
   },
 
-  // Try to auto-restore user on app start
-  // (useful if the app was closed and reopened)
+  // Restore user state from Supabase when a valid session is present.
   async restoreUser(): Promise<UserAccount | null> {
     try {
       const { data, error } = await supabase.auth.getUser();
@@ -150,7 +147,7 @@ export const AuthService = {
     }
   },
 
-  // Update user (for saving new metrics, etc.)
+  // Update user profile: update profile metadata and preserve local metrics/history fields.
   async updateUser(user: UserAccount): Promise<UserAccount> {
     const { data, error } = await supabase.auth.updateUser({
       data: {
