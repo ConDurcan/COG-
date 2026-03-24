@@ -156,3 +156,38 @@ describe("AuthService.login", () => {
     expect(mockedSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
   });
 });
+
+describe("AuthService – Supabase error paths", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("throws the Supabase error message when signup fails", async () => {
+    mockedSupabase.auth.signUp.mockResolvedValue({
+      data: { user: null },
+      error: { message: "User already registered" },
+    });
+
+    await expect(
+      AuthService.signup({
+        email: "alex@example.com",
+        displayName: "Alex",
+        password: "Password123",
+      }),
+    ).rejects.toThrow("User already registered");
+  });
+
+  it("throws the Supabase error message when login fails", async () => {
+    mockedSupabase.auth.signInWithPassword.mockResolvedValue({
+      data: { user: null },
+      error: { message: "Invalid login credentials" },
+    });
+
+    await expect(
+      AuthService.login({
+        email: "alex@example.com",
+        password: "Password123",
+      }),
+    ).rejects.toThrow("Invalid login credentials");
+  });
+});

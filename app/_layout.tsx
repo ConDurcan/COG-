@@ -8,11 +8,8 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { AuthProvider } from "@/context/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -20,15 +17,32 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
-        </Stack>
+        <AppNavigator />
         <StatusBar style="auto" />
       </ThemeProvider>
     </AuthProvider>
+  );
+}
+
+function AppNavigator() {
+  const { isHydrating, isLoggedIn } = useAuth();
+
+  if (isHydrating) {
+    return null;
+  }
+
+  return (
+    <Stack>
+      <Stack.Protected guard={!isLoggedIn}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={isLoggedIn}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Screen
+        name="modal"
+        options={{ presentation: "modal", title: "Modal" }}
+      />
+    </Stack>
   );
 }

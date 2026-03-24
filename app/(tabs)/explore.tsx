@@ -1,8 +1,12 @@
 import { Pedometer } from "expo-sensors";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+
+import { useAuth } from "@/hooks/use-auth";
+import { AuthService } from "@/services/auth-service";
 
 export default function ActivityScreen() {
+  const { user, setUser } = useAuth();
   const [steps, setSteps] = useState(0);
   const [stepGoalInput, setStepGoalInput] = useState("10000");
   const [status, setStatus] = useState("Loading...");
@@ -11,6 +15,15 @@ export default function ActivityScreen() {
   const stepGoal =
     Number.isFinite(parsedStepGoal) && parsedStepGoal >= 0 ? parsedStepGoal : 0;
   const stepsLeft = Math.max(stepGoal - steps, 0);
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout();
+      setUser(null);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Logout failed");
+    }
+  };
 
   useEffect(() => {
     const getSteps = async () => {
@@ -35,6 +48,14 @@ export default function ActivityScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.profileRow}>
+        <Text style={styles.profileLabel}>
+          PROFILE: {user?.displayName ?? user?.email ?? "Guest"}
+        </Text>
+        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutButtonText}>LOG OUT</Text>
+        </Pressable>
+      </View>
       <Text style={styles.label}>TODAY'S STEPS</Text>
       {status ? (
         <Text style={styles.status}>{status}</Text>
@@ -77,6 +98,33 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 4,
     textTransform: "uppercase",
+  },
+  profileRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  profileLabel: {
+    color: "#cfd8d3",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
+  logoutButton: {
+    borderColor: "#666666",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  logoutButtonText: {
+    color: "#f2f2f2",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   steps: {
     color: "#04ff36",

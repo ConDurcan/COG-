@@ -1,22 +1,27 @@
-// render: mounts a component into a virtual DOM so we can query its output.
-// waitFor: retries an assertion on a short interval until it passes or times out —
-//          useful when state updates happen asynchronously (e.g. after an awaited API call).
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+// I use these test helpers to render the screen and await async UI updates.
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 
-// PermissionStatus is an enum (GRANTED, DENIED, …) used by all Expo permissions APIs.
-import { PermissionStatus } from 'expo-modules-core';
+// PermissionStatus builds realistic permission responses in mocks.
+import { PermissionStatus } from "expo-modules-core";
 
 // The real Pedometer module talks to native hardware; we replace it with a mock below.
-import { Pedometer } from 'expo-sensors';
+import { Pedometer } from "expo-sensors";
 
-// The component under test.
-import ActivityScreen from '../app/(tabs)/explore';
+import { AuthProvider } from "@/context/auth-context";
+
+// I test the Activity tab screen in this file.
+import ActivityScreen from "../app/(tabs)/explore";
+
+const renderActivityScreen = () =>
+  render(
+    <AuthProvider>
+      <ActivityScreen />
+    </AuthProvider>,
+  );
 
 // ─── Mock setup ───────────────────────────────────────────────────────────────
-// jest.mock() intercepts the module import and replaces it with our factory.
-// Every test in this file will receive this fake Pedometer instead of the real one,
-// so tests run without any native hardware and the results are fully controlled.
-jest.mock('expo-sensors', () => ({
+// I replace expo-sensors with a controlled mock implementation for each test.
+jest.mock("expo-sensors", () => ({
   Pedometer: {
     // jest.fn() creates a spy function; we can set its return value per test.
     requestPermissionsAsync: jest.fn(),
@@ -24,120 +29,132 @@ jest.mock('expo-sensors', () => ({
   },
 }));
 
-// Cast to jest.Mocked so TypeScript knows these functions have mock helpers
-// like .mockResolvedValue() and .mockReturnValue().
+jest.mock("@/services/auth-service", () => ({
+  AuthService: {
+    logout: jest.fn(),
+    restoreUser: jest.fn().mockResolvedValue(null),
+  },
+}));
+
+// I cast to jest.Mocked so TypeScript exposes mock helpers on these methods.
 const pedometerMock = Pedometer as jest.Mocked<typeof Pedometer>;
 
-// Derive the exact return type that requestPermissionsAsync resolves to,
-// so our helper below is always in sync with the real API signature.
-type PedometerPermissionResponse = Awaited<ReturnType<typeof Pedometer.requestPermissionsAsync>>;
+// Type derived from the source API so the helper stays in sync.
+type PedometerPermissionResponse = Awaited<
+  ReturnType<typeof Pedometer.requestPermissionsAsync>
+>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Builds a complete, correctly typed permission response object.
-// Passing `granted: true` simulates the user approving the permission prompt;
-// `granted: false` simulates the user denying it.
-const createPermissionResponse = (granted: boolean): PedometerPermissionResponse => ({
+// I build a complete, typed permission payload for granted and denied flows.
+const createPermissionResponse = (
+  granted: boolean,
+): PedometerPermissionResponse => ({
   granted,
   status: granted ? PermissionStatus.GRANTED : PermissionStatus.DENIED,
   // canAskAgain is false when denied — the OS won't show the prompt again.
   canAskAgain: !granted,
   // 'never' means the permission does not expire.
-  expires: 'never',
+  expires: "never",
 });
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
-// describe() groups related tests under a shared label shown in test output.
-describe('ActivityScreen', () => {
-
-  // beforeEach runs before every individual test (it/test block).
-  // Clearing mocks resets call counts and return values so tests don't bleed into each other.
+// Grouped behavior checks for loading, denied permission, and successful reads.
+describe("ActivityScreen", () => {
+  // I reset all mocks so each test starts with a clean state.
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   // ── Test 1: Loading state ──────────────────────────────────────────────────
-  // When the component first mounts, the pedometer request is still in flight.
-  // We verify that the UI shows the heading and "Loading…" placeholder.
-  it('shows loading state initially', () => {
-    // new Promise(() => {}) never resolves, so requestPermissionsAsync stays pending.
-    // This keeps the component in its initial loading state for the duration of the test.
-    pedometerMock.requestPermissionsAsync.mockReturnValue(new Promise(() => {}));
+  // Verify the initial loading UI while permissions are still pending.
+  it("shows loading state initially", () => {
+    // I keep this promise unresolved to hold the screen in loading mode.
+    pedometerMock.requestPermissionsAsync.mockReturnValue(
+      new Promise(() => {}),
+    );
 
-    // render() mounts the component; getByText() throws if the text is not found.
-    const { getByText } = render(<ActivityScreen />);
+    // Use getByText for immediate, synchronous assertions.
+    const { getByText } = renderActivityScreen();
 
     expect(getByText("TODAY'S STEPS")).toBeTruthy();
-    expect(getByText('Loading...')).toBeTruthy();
+    expect(getByText("Loading...")).toBeTruthy();
   });
 
   // ── Test 2: Permission denied ──────────────────────────────────────────────
-  // When the user refuses the permission, the component must show an error message
-  // and must NOT attempt to read the step count.
-  it('shows permission denied when permission is not granted', async () => {
-    // mockResolvedValue wraps the value in a resolved Promise, simulating an async response.
-    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(false));
+  // Verify the denied path shows an error and skips step retrieval.
+  it("shows permission denied when permission is not granted", async () => {
+    // Resolve this mock to simulate an async permission response.
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(
+      createPermissionResponse(false),
+    );
 
-    // findByText is like getByText but returns a Promise — it waits for the element
-    // to appear after state updates triggered by the resolved permission response.
-    const { findByText } = render(<ActivityScreen />);
+    // Use findByText to wait for UI changes triggered by async effects.
+    const { findByText } = renderActivityScreen();
 
-    expect(await findByText('Permission denied')).toBeTruthy();
-    // If permission was denied, the step-count API should never be called.
+    expect(await findByText("Permission denied")).toBeTruthy();
+    // Expect no step API call when permission is denied.
     expect(pedometerMock.getStepCountAsync).not.toHaveBeenCalled();
   });
 
   // ── Test 3: Successful step count ─────────────────────────────────────────
-  // When both permission and the pedometer call succeed, the formatted step count
-  // must be displayed and the loading text must be gone.
-  it('shows step count when permission is granted', async () => {
-    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
-    // Return 1 234 steps; the component formats this with toLocaleString() → "1,234".
+  // Verify successful permission + pedometer flow and final formatted output.
+  it("shows step count when permission is granted", async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(
+      createPermissionResponse(true),
+    );
+    // Returns a known step value so formatting is easy to assert.
     pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
 
-    const { findByText, queryByText } = render(<ActivityScreen />);
+    const { findByText, queryByText } = renderActivityScreen();
 
-    // waitFor keeps polling the callback until it stops throwing.
+    // waitFor keeps polling the callbacks until it stops throwing.
     // This waits for the entire async effect chain to complete (permissions → step query).
     await waitFor(() => {
       expect(pedometerMock.getStepCountAsync).toHaveBeenCalledTimes(1);
     });
 
     // The step count should now be formatted and visible.
-    expect(await findByText('1,234')).toBeTruthy();
-    // queryByText returns null instead of throwing when the element is absent.
-    expect(queryByText('Loading...')).toBeNull();
+    expect(await findByText("1,234")).toBeTruthy();
+    // Loading text should disappear once data has rendered.
+    expect(queryByText("Loading...")).toBeNull();
   });
 
-  it('shows default steps left based on default goal', async () => {
-    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
+  it("shows default steps left based on default goal", async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(
+      createPermissionResponse(true),
+    );
     pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
 
-    const { findByText } = render(<ActivityScreen />);
+    const { findByText } = renderActivityScreen();
 
-    expect(await findByText('8,766')).toBeTruthy();
+    expect(await findByText("8,766")).toBeTruthy();
   });
 
-  it('updates steps left when user changes goal', async () => {
-    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
+  it("updates steps left when user changes goal", async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(
+      createPermissionResponse(true),
+    );
     pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
 
-    const { findByLabelText, findByText } = render(<ActivityScreen />);
+    const { findByLabelText, findByText } = renderActivityScreen();
 
-    const input = await findByLabelText('Step goal');
-    fireEvent.changeText(input, '9000');
+    const input = await findByLabelText("Step goal");
+    fireEvent.changeText(input, "9000");
 
-    expect(await findByText('7,766')).toBeTruthy();
+    expect(await findByText("7,766")).toBeTruthy();
   });
 
-  it('never shows negative steps left', async () => {
-    pedometerMock.requestPermissionsAsync.mockResolvedValue(createPermissionResponse(true));
+  it("never shows negative steps left", async () => {
+    pedometerMock.requestPermissionsAsync.mockResolvedValue(
+      createPermissionResponse(true),
+    );
     pedometerMock.getStepCountAsync.mockResolvedValue({ steps: 1234 });
 
-    const { findByLabelText, findByText } = render(<ActivityScreen />);
+    const { findByLabelText, findByText } = renderActivityScreen();
 
-    const input = await findByLabelText('Step goal');
-    fireEvent.changeText(input, '1000');
+    const input = await findByLabelText("Step goal");
+    fireEvent.changeText(input, "1000");
 
-    expect(await findByText('0')).toBeTruthy();
+    expect(await findByText("0")).toBeTruthy();
   });
 });
