@@ -15,6 +15,12 @@ export interface LoginInput {
   password: string;
 }
 
+export interface DailyStepPoint {
+  date: string;
+  label: string;
+  steps: number;
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -171,4 +177,56 @@ export const AuthService = {
       leagueHistory: user.leagueHistory,
     };
   },
+
+  async getDailyStepHistory(userId: string, days = 7): Promise<DailyStepPoint[]> {
+    const safeDays = Math.max(days, 1);
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - (safeDays - 1));
+
+    const { data, error } = await supabase
+      .from("user_metrics")
+      .select("metric_value, recorded_at")
+      .eq("user_id", userId)
+      .eq("metric_key", "dailyStepCount")
+      .gte("recorded_at", startDate.toISOString())
+      .order("recorded_at", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const stepMap = new Map<string, number>();
+
+    for (const row of data ?? []) {
+      const dateKey = toDateKey(row.recorded_at);
+      const parsedValue = Number(row.metric_value);
+      const metricValue = Number.isFinite(parsedValue) ? parsedValue : 0;
+      const previousValue = stepMap.get(dateKey) ?? 0;
+
+      // Keep the largest value for a day in case multiple samples exist.
+      stepMap.set(dateKey, Math.max(previousValue, metricValue));
+    }
+
+    const history: DailyStepPoint[] = [];
+
+    for (let i = 0; i < safeDays; i += 1) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+
+      const dateKey = toDateKey(date.toISOString());
+
+      history.push({
+        date: dateKey,
+        label: date.toLocaleDateString(undefined, { weekday: "short" }),
+        steps: stepMap.get(dateKey) ?? 0,
+      });
+    }
+
+    return history;
+  },
 };
+
+function toDateKey(dateIso: string): string {
+  return dateIso.slice(0, 10);
+}

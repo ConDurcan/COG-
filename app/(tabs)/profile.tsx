@@ -1,153 +1,229 @@
-import { StyleSheet, View } from "react-native";
+import { Pedometer } from "expo-sensors";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
+import { StepsLineChart } from "@/components/steps-line-chart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Colors } from "@/constants/theme";
+import { useAuth } from "@/hooks/use-auth";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { AuthService, DailyStepPoint } from "@/services/auth-service";
 
-type DayStepPoint = {
-  day: string;
-  steps: number;
-};
-
-type ChartBarPoint = {
-  key: string;
-  day: string;
-  heightPercent: number;
-  steps: number;
-};
-
-type ChartModel = {
-  bars: ChartBarPoint[];
-  goal: number;
-  goalPercent: number;
-  max: number;
-};
-
-const DEFAULT_GOAL = 8000;
-
-// Placeholder source data. Replace with real history from backend later.
-const mockWeek: DayStepPoint[] = [
-  { day: "Mon", steps: 2200 },
-  { day: "Tue", steps: 4100 },
-  { day: "Wed", steps: 3700 },
-  { day: "Thu", steps: 5200 },
-  { day: "Fri", steps: 6800 },
-  { day: "Sat", steps: 7400 },
-  { day: "Sun", steps: 6100 },
-];
+const GOAL_STEPS = 10000;
+const HISTORY_DAYS = 7;
 
 export default function ProfileScreen() {
-  // Build a chart-ready model from the current data source.
-  const chart = buildChartModel(mockWeek, DEFAULT_GOAL);
+  const { user } = useAuth();
+  const colorScheme = useColorScheme() ?? "light";
+  const palette = Colors[colorScheme];
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<DailyStepPoint[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadHistory = async () => {
+      if (!user) {
+        if (isMounted) {
+          setHistory([]);
+          setError("You need to be logged in to view profile stats.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        const points = await AuthService.getDailyStepHistory(user.id, HISTORY_DAYS);
+        const liveTodaySteps = await getTodayLiveSteps();
+        const mergedPoints = mergeTodaySteps(points, liveTodaySteps);
+
+        if (isMounted) {
+          setHistory(mergedPoints);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load your step history.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const currentSteps = useMemo(() => {
+    if (history.length === 0) {
+      return 0;
+    }
+
+    return history[history.length - 1]?.steps ?? 0;
+  }, [history]);
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">My Stats</ThemedText>
-      <ThemedText>skeleton (using mock data "logic may be changed")</ThemedText>
+      <ThemedText type="title">Profile</ThemedText>
+      <ThemedText style={styles.subtitle}>Steps trend from the last 7 days</ThemedText>
 
-      <View style={styles.metaRow}>
-        <ThemedText style={styles.metaText}>Goal: {chart.goal}</ThemedText>
-        <ThemedText style={styles.metaText}>Max: {chart.max}</ThemedText>
-      </View>
-
-      <View style={styles.chartBox}>
-        {/* Horizontal goal reference line */}
-        <View style={[styles.goalLine, { top: `${100 - chart.goalPercent}%` }]} />
-        <View style={styles.pointsRow}>
-          {chart.bars.map((bar) => (
-            <View key={bar.key} style={styles.barWrap}>
-              {/* Daily steps visualized as a vertical bar */}
-              <View
-                style={[
-                  styles.point,
-                  {
-                    height: `${bar.heightPercent}%`,
-                  },
-                ]}
-              />
-              <ThemedText style={styles.dayLabel}>{bar.day}</ThemedText>
-            </View>
-          ))}
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendSwatch, { backgroundColor: palette.tint }]} />
+          <ThemedText style={styles.legendText}>Your steps</ThemedText>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendGoalLine, { borderColor: "#ff7a00" }]} />
+          <ThemedText style={styles.legendText}>Goal: {GOAL_STEPS.toLocaleString()}</ThemedText>
         </View>
       </View>
+
+      {isLoading ? (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator size="small" color={palette.tint} />
+          <ThemedText>Loading graph...</ThemedText>
+        </View>
+      ) : error ? (
+        <View style={styles.stateContainer}>
+          <ThemedText>{error}</ThemedText>
+        </View>
+      ) : (
+        <>
+          <StepsLineChart
+            points={history.map((point) => ({ label: point.label, value: point.steps }))}
+            goalValue={GOAL_STEPS}
+            lineColor={palette.tint}
+            goalLineColor="#ff7a00"
+            axisColor={palette.icon}
+            labelColor={palette.text}
+          />
+
+          <View style={styles.summaryRow}>
+            <ThemedText type="defaultSemiBold">Current: {currentSteps.toLocaleString()}</ThemedText>
+            <ThemedText type="defaultSemiBold">
+              Gap: {Math.max(GOAL_STEPS - currentSteps, 0).toLocaleString()}
+            </ThemedText>
+          </View>
+        </>
+      )}
     </ThemedView>
   );
 }
 
-function buildChartModel(series: DayStepPoint[], goal: number): ChartModel {
-  // Normalize values so both bars and goal line share the same scale.
-  const safeGoal = Math.max(goal, 1);
-  const maxSteps = Math.max(...series.map((point) => point.steps), safeGoal, 1);
+async function getTodayLiveSteps(): Promise<number | null> {
+  try {
+    const { granted } = await Pedometer.requestPermissionsAsync();
 
-  const bars = series.map((point) => ({
-    key: point.day,
-    day: point.day,
-    steps: point.steps,
-    heightPercent: toPercent(point.steps, maxSteps),
-  }));
+    if (!granted) {
+      return null;
+    }
 
-  return {
-    bars,
-    goal: safeGoal,
-    goalPercent: toPercent(safeGoal, maxSteps),
-    max: maxSteps,
-  };
+    const end = new Date();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const result = await Pedometer.getStepCountAsync(start, end);
+    return result.steps;
+  } catch {
+    return null;
+  }
 }
 
-function toPercent(value: number, max: number): number {
-  return (Math.max(value, 0) / Math.max(max, 1)) * 100;
+function mergeTodaySteps(points: DailyStepPoint[], liveTodaySteps: number | null): DailyStepPoint[] {
+  if (liveTodaySteps === null) {
+    return points;
+  }
+
+  const todayKey = toDateKey(new Date());
+  let foundToday = false;
+
+  const updatedPoints = points.map((point) => {
+    if (point.date !== todayKey) {
+      return point;
+    }
+
+    foundToday = true;
+
+    return {
+      ...point,
+      steps: Math.max(point.steps, liveTodaySteps),
+    };
+  });
+
+  if (foundToday) {
+    return updatedPoints;
+  }
+
+  return [
+    ...updatedPoints,
+    {
+      date: todayKey,
+      label: new Date().toLocaleDateString(undefined, { weekday: "short" }),
+      steps: liveTodaySteps,
+    },
+  ];
+}
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 50,
-  },
-  metaRow: {
-    flexDirection: "row",
     gap: 12,
-    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
-  metaText: {
-    fontSize: 13,
+  subtitle: {
+    fontSize: 14,
     opacity: 0.8,
   },
-  chartBox: {
-    borderColor: "#d0d0d0",
+  legendRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+  },
+  legendItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  legendSwatch: {
     borderRadius: 8,
-    borderWidth: 1,
-    height: 210,
-    marginTop: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    position: "relative",
+    height: 8,
+    width: 16,
   },
-  goalLine: {
-    borderColor: "#ff7a00",
-    borderStyle: "dashed",
+  legendGoalLine: {
     borderTopWidth: 2,
-    left: 0,
-    position: "absolute",
-    right: 0,
+    borderStyle: "dashed",
+    width: 16,
   },
-  pointsRow: {
-    alignItems: "flex-end",
-    flex: 1,
+  legendText: {
+    fontSize: 13,
+  },
+  stateContainer: {
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+  },
+  summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-  barWrap: {
-    alignItems: "center",
-    gap: 4,
-  },
-  point: {
-    backgroundColor: "#0a7ea4",
-    borderRadius: 6,
-    minHeight: 6,
-    width: 12,
-  },
-  dayLabel: {
-    fontSize: 10,
-    opacity: 0.8,
+    marginTop: 6,
   },
 });
