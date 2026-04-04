@@ -41,6 +41,14 @@ export default function ActivityScreen() {
       const result = await Pedometer.getStepCountAsync(start, end);
       setSteps(result.steps);
       setStatus("");
+
+      if (user) {
+        try {
+          await AuthService.saveDailyStepSnapshot({ userId: user.id, steps: result.steps });
+        } catch (snapshotError) {
+          console.error("Error saving daily step snapshot:", snapshotError);
+        }
+      }
     };
 
     void getSteps();

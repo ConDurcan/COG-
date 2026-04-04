@@ -15,6 +15,11 @@ export interface LoginInput {
   password: string;
 }
 
+export interface DailyStepSnapshotInput {
+  userId: string;
+  steps: number;
+}
+
 export interface DailyStepPoint {
   date: string;
   label: string;
@@ -176,6 +181,38 @@ export const AuthService = {
       metrics: user.metrics,
       leagueHistory: user.leagueHistory,
     };
+  },
+
+  async saveDailyStepSnapshot(input: DailyStepSnapshotInput): Promise<void> {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
+
+    const { error: deleteError } = await supabase
+      .from("user_metrics")
+      .delete()
+      .eq("user_id", input.userId)
+      .eq("metric_key", "dailyStepCount")
+      .gte("recorded_at", todayStart.toISOString())
+      .lt("recorded_at", tomorrowStart.toISOString());
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+
+    const { error: insertError } = await supabase.from("user_metrics").insert({
+      user_id: input.userId,
+      metric_key: "dailyStepCount",
+      metric_value: input.steps,
+      unit: "steps",
+      recorded_at: new Date().toISOString(),
+    });
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
   },
 
   async getDailyStepHistory(userId: string, days = 7): Promise<DailyStepPoint[]> {
