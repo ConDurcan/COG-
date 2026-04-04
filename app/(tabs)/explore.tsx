@@ -2,13 +2,14 @@ import { Pedometer } from "expo-sensors";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { STEP_GOAL_STEPS } from "@/constants/step-goal";
 import { useAuth } from "@/hooks/use-auth";
 import { AuthService } from "@/services/auth-service";
 
 export default function ActivityScreen() {
   const { user, setUser } = useAuth();
   const [steps, setSteps] = useState(0);
-  const [stepGoalInput, setStepGoalInput] = useState("10000");
+  const [stepGoalInput, setStepGoalInput] = useState(String(STEP_GOAL_STEPS));
   const [status, setStatus] = useState("Loading...");
 
   const parsedStepGoal = Number.parseInt(stepGoalInput, 10);
@@ -52,7 +53,7 @@ export default function ActivityScreen() {
     };
 
     void getSteps();
-  }, []);
+  }, [user]);
 
   return (
     <View style={styles.container}>
