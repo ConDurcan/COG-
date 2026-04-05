@@ -10,13 +10,14 @@ import {
   View,
 } from "react-native";
 
+import { STEP_GOAL_STEPS } from "@/constants/step-goal";
 import { useAuth } from "@/hooks/use-auth";
 import { AuthService } from "@/services/auth-service";
 
 export default function ActivityScreen() {
   const { user, setUser } = useAuth();
   const [steps, setSteps] = useState(0);
-  const [stepGoalInput, setStepGoalInput] = useState("10000");
+  const [stepGoalInput, setStepGoalInput] = useState(String(STEP_GOAL_STEPS));
   const [status, setStatus] = useState("Loading...");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,20 +47,22 @@ export default function ActivityScreen() {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
 
-    const result = await Pedometer.getStepCountAsync(start, end);
-    setSteps(result.steps);
-    setStatus("");
-  };
+      const result = await Pedometer.getStepCountAsync(start, end);
+      setSteps(result.steps);
+      setStatus("");
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await getSteps();
-    setRefreshing(false);
-  };
+      if (user) {
+        try {
+          await AuthService.saveDailyStepSnapshot({ userId: user.id, steps: result.steps });
+        } catch (snapshotError) {
+          console.error("Error saving daily step snapshot:", snapshotError);
+        }
+      }
+    };
 
   useEffect(() => {
     void getSteps();
-  }, []);
+  }, [user]);
 
   return (
     <ScrollView
