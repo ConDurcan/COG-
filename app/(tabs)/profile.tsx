@@ -5,8 +5,8 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { StepsLineChart } from "@/components/steps-line-chart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { STEP_GOAL_STEPS } from "@/constants/step-goal";
 import { Colors } from "@/constants/theme";
+import { useStepGoal } from "@/context/step-goal-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthService, DailyStepPoint } from "@/services/auth-service";
@@ -15,6 +15,7 @@ const HISTORY_DAYS = 7;
 
 export default function ProfileScreen() {
   const { user } = useAuth();
+  const { stepGoal } = useStepGoal();
   const colorScheme = useColorScheme() ?? "light";
   const palette = Colors[colorScheme];
 
@@ -39,12 +40,13 @@ export default function ProfileScreen() {
       try {
         setIsLoading(true);
         setError(null);
-        const [points, currentStreakCount] = await Promise.all([
-          AuthService.getDailyStepHistory(user.id, HISTORY_DAYS),
-          AuthService.getCurrentStreakCount(user.id),
-        ]);
+        const points = await AuthService.getDailyStepHistory(user.id, HISTORY_DAYS);
         const liveTodaySteps = await getTodayLiveSteps();
         const mergedPoints = mergeTodaySteps(points, liveTodaySteps);
+        const currentStreakCount = await AuthService.getCurrentStreakCount(
+          user.id,
+          stepGoal,
+        );
 
         if (isMounted) {
           setHistory(mergedPoints);
@@ -66,7 +68,7 @@ export default function ProfileScreen() {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, stepGoal]);
 
   const currentSteps = useMemo(() => {
     if (history.length === 0) {
@@ -88,7 +90,7 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendGoalLine, { borderColor: "#ff7a00" }]} />
-          <ThemedText style={styles.legendText}>Goal: {STEP_GOAL_STEPS.toLocaleString()}</ThemedText>
+          <ThemedText style={styles.legendText}>Goal: {stepGoal.toLocaleString()}</ThemedText>
         </View>
       </View>
 
@@ -105,7 +107,7 @@ export default function ProfileScreen() {
         <>
           <StepsLineChart
             points={history.map((point) => ({ label: point.label, value: point.steps }))}
-            goalValue={STEP_GOAL_STEPS}
+            goalValue={stepGoal}
             lineColor={palette.tint}
             goalLineColor="#ff7a00"
             axisColor={palette.icon}
@@ -115,7 +117,7 @@ export default function ProfileScreen() {
           <View style={styles.summaryRow}>
             <ThemedText type="defaultSemiBold">Current: {currentSteps.toLocaleString()}</ThemedText>
             <ThemedText type="defaultSemiBold">
-              Gap: {Math.max(STEP_GOAL_STEPS - currentSteps, 0).toLocaleString()}
+              Gap: {Math.max(stepGoal - currentSteps, 0).toLocaleString()}
             </ThemedText>
           </View>
 

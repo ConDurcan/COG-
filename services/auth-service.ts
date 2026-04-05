@@ -19,6 +19,7 @@ export interface LoginInput {
 export interface DailyStepSnapshotInput {
   userId: string;
   steps: number;
+  stepGoal?: number;
 }
 
 export interface DailyStepPoint {
@@ -215,7 +216,7 @@ export const AuthService = {
       throw new Error(insertError.message);
     }
 
-    const streak = await calculateCurrentStreak(input.userId);
+    const streak = await calculateCurrentStreak(input.userId, input.stepGoal);
 
     const { error: deleteStreakError } = await supabase
       .from("user_metrics")
@@ -242,24 +243,8 @@ export const AuthService = {
     }
   },
 
-  async getCurrentStreakCount(userId: string): Promise<number> {
-    const { data, error } = await supabase
-      .from("user_metrics")
-      .select("metric_value, recorded_at")
-      .eq("user_id", userId)
-      .eq("metric_key", "currentStreakCount")
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!error && data) {
-      const parsed = Number(data.metric_value);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-
-    return calculateCurrentStreak(userId);
+  async getCurrentStreakCount(userId: string, stepGoal = STEP_GOAL_STEPS): Promise<number> {
+    return calculateCurrentStreak(userId, stepGoal);
   },
 
   async getDailyStepHistory(userId: string, days = 7): Promise<DailyStepPoint[]> {
@@ -311,7 +296,7 @@ export const AuthService = {
   },
 };
 
-async function calculateCurrentStreak(userId: string): Promise<number> {
+async function calculateCurrentStreak(userId: string, stepGoal = STEP_GOAL_STEPS): Promise<number> {
   const { data, error } = await supabase
     .from("user_metrics")
     .select("metric_value, recorded_at")
@@ -341,7 +326,7 @@ async function calculateCurrentStreak(userId: string): Promise<number> {
     const dateKey = toDateKey(cursor);
     const steps = stepByDate.get(dateKey);
 
-    if (steps === undefined || steps < STEP_GOAL_STEPS) {
+    if (steps === undefined || steps < stepGoal) {
       break;
     }
 

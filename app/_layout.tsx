@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { AuthProvider } from "@/context/auth-context";
+import { StepGoalProvider, useStepGoal } from "@/context/step-goal-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
@@ -16,18 +17,21 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <StepGoalProvider>
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </StepGoalProvider>
     </AuthProvider>
   );
 }
 
 function AppNavigator() {
   const { isHydrating, isLoggedIn } = useAuth();
+  const { isHydrating: isStepGoalHydrating } = useStepGoal();
 
-  if (isHydrating) {
+  if (isHydrating || isStepGoalHydrating) {
     return null;
   }
 

@@ -10,16 +10,21 @@ import {
   View,
 } from "react-native";
 
-import { STEP_GOAL_STEPS } from "@/constants/step-goal";
+import { useStepGoal } from "@/context/step-goal-context";
 import { useAuth } from "@/hooks/use-auth";
 import { AuthService } from "@/services/auth-service";
 
 export default function ActivityScreen() {
   const { user, setUser } = useAuth();
+  const { stepGoal: sharedStepGoal, setStepGoal } = useStepGoal();
   const [steps, setSteps] = useState(0);
-  const [stepGoalInput, setStepGoalInput] = useState(String(STEP_GOAL_STEPS));
+  const [stepGoalInput, setStepGoalInput] = useState(String(sharedStepGoal));
   const [status, setStatus] = useState("Loading...");
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    setStepGoalInput(String(sharedStepGoal));
+  }, [sharedStepGoal]);
 
   const parsedStepGoal = Number.parseInt(stepGoalInput, 10);
   const stepGoal =
@@ -53,7 +58,11 @@ export default function ActivityScreen() {
 
       if (user) {
         try {
-          await AuthService.saveDailyStepSnapshot({ userId: user.id, steps: result.steps });
+          await AuthService.saveDailyStepSnapshot({
+            userId: user.id,
+            steps: result.steps,
+            stepGoal: sharedStepGoal,
+          });
         } catch (snapshotError) {
           console.error("Error saving daily step snapshot:", snapshotError);
         }
@@ -105,6 +114,10 @@ export default function ActivityScreen() {
           onChangeText={(text) => {
             const numericText = text.replace(/[^0-9]/g, "");
             setStepGoalInput(numericText);
+
+            if (numericText.length > 0) {
+              void setStepGoal(Number.parseInt(numericText, 10));
+            }
           }}
           placeholder="Enter step goal"
           placeholderTextColor="#5a5a5a"
