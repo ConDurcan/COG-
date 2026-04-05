@@ -64,6 +64,15 @@ export default function ActivityScreen() {
     void getSteps();
   }, [user]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await getSteps();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
