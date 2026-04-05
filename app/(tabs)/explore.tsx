@@ -1,6 +1,14 @@
 import { Pedometer } from "expo-sensors";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { STEP_GOAL_STEPS } from "@/constants/step-goal";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,6 +19,7 @@ export default function ActivityScreen() {
   const [steps, setSteps] = useState(0);
   const [stepGoalInput, setStepGoalInput] = useState(String(STEP_GOAL_STEPS));
   const [status, setStatus] = useState("Loading...");
+  const [refreshing, setRefreshing] = useState(false);
 
   const parsedStepGoal = Number.parseInt(stepGoalInput, 10);
   const stepGoal =
@@ -26,18 +35,17 @@ export default function ActivityScreen() {
     }
   };
 
-  useEffect(() => {
-    const getSteps = async () => {
-      const { granted } = await Pedometer.requestPermissionsAsync();
+  const getSteps = async () => {
+    const { granted } = await Pedometer.requestPermissionsAsync();
 
-      if (!granted) {
-        setStatus("Permission denied");
-        return;
-      }
+    if (!granted) {
+      setStatus("Permission denied");
+      return;
+    }
 
-      const end = new Date();
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
 
       const result = await Pedometer.getStepCountAsync(start, end);
       setSteps(result.steps);
@@ -52,11 +60,18 @@ export default function ActivityScreen() {
       }
     };
 
+  useEffect(() => {
     void getSteps();
   }, [user]);
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.profileRow}>
         <Text style={styles.profileLabel}>
           PROFILE: {user?.displayName ?? user?.email ?? "Guest"}
@@ -89,16 +104,19 @@ export default function ActivityScreen() {
         <Text style={styles.stepsLeftLabel}>STEPS LEFT</Text>
         <Text style={styles.stepsLeftValue}>{stepsLeft.toLocaleString()}</Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#0a0a0a",
+  },
+  contentContainer: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0a0a0a",
     gap: 8,
   },
   label: {

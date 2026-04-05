@@ -43,6 +43,11 @@ export default function TabLayout() {
           title: "Profile",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="person.fill" color={color} />
+        name="support"
+        options={{
+          title: "Support",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="questionmark.circle" color={color} />
           ),
         }}
       />
