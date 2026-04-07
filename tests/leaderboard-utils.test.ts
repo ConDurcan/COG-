@@ -1,10 +1,10 @@
 import {
-  DAILY_GOAL,
-  buildLeaderboardState,
-  competitors,
-  formatSteps,
-  type Competitor,
-} from "@/app/(tabs)/leaderboard-utils";
+    DAILY_GOAL,
+    buildLeaderboardState,
+    competitors,
+    formatSteps,
+    type Competitor,
+} from "@/utils/leaderboard-utils";
 import { describe, expect, it } from "@jest/globals";
 
 describe("leaderboard utils", () => {
@@ -12,7 +12,14 @@ describe("leaderboard utils", () => {
     const state = buildLeaderboardState(competitors);
     const orderedNames = state.sorted.map((person) => person.name);
 
-    expect(orderedNames).toEqual(["Mia", "You", "Luca", "Amara", "Jake", "Noor"]);
+    expect(orderedNames).toEqual([
+      "Mia",
+      "You",
+      "Luca",
+      "Amara",
+      "Jake",
+      "Noor",
+    ]);
   });
 
   it("calculates rank and distance metrics for You", () => {
@@ -27,8 +34,20 @@ describe("leaderboard utils", () => {
 
   it("caps progress values at 100%", () => {
     const highStepData: Competitor[] = [
-      { id: 10, name: "You", steps: DAILY_GOAL + 2500, streak: 1, isOnline: true },
-      { id: 11, name: "Alex", steps: DAILY_GOAL + 5000, streak: 1, isOnline: true },
+      {
+        id: 10,
+        name: "You",
+        steps: DAILY_GOAL + 2500,
+        streak: 1,
+        isOnline: true,
+      },
+      {
+        id: 11,
+        name: "Alex",
+        steps: DAILY_GOAL + 5000,
+        streak: 1,
+        isOnline: true,
+      },
     ];
 
     const state = buildLeaderboardState(highStepData);
