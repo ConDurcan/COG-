@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATARS = ["🏃", "🚶", "⚡", "🔥", "💪", "🎯", "🏆", "👟"];
@@ -25,15 +26,15 @@ const LEAGUE_CODE =
   "STRIDE-" + Math.random().toString(36).substr(2, 6).toUpperCase();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const FieldLabel = ({ label }: { label: string }) => (
   <Text style={styles.fieldLabel}>{label}</Text>
 );
 const Divider = () => <View style={styles.divider} />;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-
 export default function League() {
+  const router = useRouter();
+  
   const [step, setStep] = useState(1);
   const [league, setLeague] = useState({
     name: "",
@@ -89,8 +90,22 @@ export default function League() {
     "Share with friends and start competing",
   ];
 
-  // ── Header ───────────────────────────────────────────────────────────────────
+  // ── Custome screen header with back button ─────────────────────────────────────────────────────────────
+  const ScreenHeader = () => (
+    <View style={styles.screenHeader}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
 
+      <Text style={styles.screenHeaderTitle}>Create New League</Text>
+
+      <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
+        <Text style={styles.resetText}>Reset</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ── Header ───────────────────────────────────────────────────────────────────
   const Header = () => (
     <View style={styles.header}>
       <Text style={styles.stepLabel}>
@@ -442,6 +457,8 @@ export default function League() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -474,6 +491,43 @@ const C = {
 };
 
 const styles = StyleSheet.create({
+  screenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e1e2e",
+    backgroundColor: "#111118",
+  },
+
+  backButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+
+  backText: {
+    color: C.blue,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+
+  screenHeaderTitle: {
+    color: C.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  resetButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  
+  resetText: {
+    color: C.textMuted,
+    fontSize: 15,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: C.bg,
