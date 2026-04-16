@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {
-  Clipboard,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -11,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
+import{ View as SafeAreaView } from 'react-native';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATARS = ['🏃', '🚶', '⚡', '🔥', '💪', '🎯', '🏆', '👟'];
@@ -26,7 +25,7 @@ const Divider = () => <View style={styles.divider} />;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function LeagueCreator() {
+export default function League() {
   const [step, setStep] = useState(1);
   const [league, setLeague] = useState({
     name: '',
@@ -313,7 +312,7 @@ export default function LeagueCreator() {
         </Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.btnGhost} onPress={() => setStep(1)} activeOpacity={0.7}>
-        <Text style={styles.btnGhostText}>← Back</Text>
+        <Text style={styles.btnGhostText}>Back</Text>
       </TouchableOpacity>
     </>
   );
@@ -348,7 +347,7 @@ export default function LeagueCreator() {
               activeOpacity={0.7}
             >
               <Text style={[styles.shareBtnText, copied && styles.shareBtnTextCopied]}>
-                {copied ? '✓ Copied!' : '📋 Copy Code'}
+                {copied ? '✓ Copied!' : 'Copy Code'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shareBtn} activeOpacity={0.7}>
@@ -375,7 +374,7 @@ export default function LeagueCreator() {
       )}
 
       <TouchableOpacity style={styles.btnPrimary} onPress={handleReset} activeOpacity={0.8}>
-        <Text style={styles.btnPrimaryText}>🏃 Go to League Dashboard</Text>
+        <Text style={styles.btnPrimaryText}>Go to League Dashboard</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.btnGhost} onPress={handleReset} activeOpacity={0.7}>
         <Text style={styles.btnGhostText}>+ Create Another League</Text>
@@ -385,25 +384,7 @@ export default function LeagueCreator() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.card}>
-          <Header />
-          <View style={styles.body}>
-            {step === 1 && <Step1 />}
-            {step === 2 && <Step2 />}
-            {step === 3 && <Step3 />}
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return <Text>Test</Text>;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
