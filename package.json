@@ -48,7 +48,7 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "jest": "^30.3.0",
-    "jest-expo": "^55.0.12-canary-20260328-bdc6273",
+    "jest-expo": "^54.0.0",
     "metro-react-native-babel-preset": "^0.77.0",
     "react-test-renderer": "^19.1.0",
     "ts-jest": "^29.4.6",
