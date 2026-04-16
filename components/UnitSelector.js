@@ -1,9 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Button } from 'react-native';
 import { useUnit, UNITS } from '../contexts/UnitContext';
+//import { useNavigation } from '@react-navigation/native';
+//import { Button, View } from 'react-native';
 
-export default function UnitSelector() {
+export default function UnitSelector({navigation}) {
   const { unit, changeUnit } = useUnit();
+
+
+  //const navigation = useNavigation();
+
 
   return (
     <View style={styles.container}>
@@ -43,6 +49,10 @@ export default function UnitSelector() {
           </Text>
         </TouchableOpacity>
       </View>
+      <Button
+          title="Privacy Settings"
+          onPress={() => navigation.navigate('Privacy')}
+        />
     </View>
   );
 }
@@ -81,4 +91,4 @@ const styles = StyleSheet.create({
   buttonTextActive: {
     color: '#fff',
   },
-});
+});  
