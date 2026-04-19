@@ -9,13 +9,17 @@ import { Pedometer } from "expo-sensors";
 
 import { AuthProvider } from "@/context/auth-context";
 
+import { StepGoalProvider } from "@/context/step-goal-context";
+
 // I test the Activity tab screen in this file.
 import ActivityScreen from "../app/(tabs)/explore";
 
 const renderActivityScreen = () =>
   render(
     <AuthProvider>
-      <ActivityScreen />
+      <StepGoalProvider>
+        <ActivityScreen />
+      </StepGoalProvider>
     </AuthProvider>,
   );
 

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import ActivityScreen from "@/app/(tabs)/explore";
 import { AuthProvider } from "@/context/auth-context";
+import { StepGoalProvider } from "@/context/step-goal-context";
 import { useAuth } from "@/hooks/use-auth";
 import { AuthService } from "@/services/auth-service";
 import { UserAccount } from "@/types/user";
@@ -56,8 +57,10 @@ function SeedUser({ user }: { user: UserAccount }) {
 const renderActivityScreen = () =>
   render(
     <AuthProvider>
-      <SeedUser user={mockUser} />
-      <ActivityScreen />
+      <StepGoalProvider>
+        <SeedUser user={mockUser} />
+        <ActivityScreen />
+      </StepGoalProvider>
     </AuthProvider>,
   );
 
