@@ -7,6 +7,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Link } from "expo-router";
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -37,6 +38,12 @@ export default function HomeScreen() {
           goal.
         </ThemedText>
       </ThemedView>
+      <ThemedView style={styles.stepContainer}>
+        <Link href="/League">
+          <ThemedText type="subtitle">Create a League</ThemedText>
+        </Link>
+        <ThemedText>Tap here to go to the League Creator page.</ThemedText>
+      </ThemedView>
     </ParallaxScrollView>
   );
 }
@@ -53,5 +60,11 @@ const styles = StyleSheet.create({
   section: {
     gap: 8,
     marginBottom: 8,
+  },
+  stepContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
   },
 });
