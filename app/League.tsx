@@ -1,17 +1,21 @@
 import Clipboard from "@react-native-clipboard/clipboard";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Platform,
-  View as SafeAreaView,
   ScrollView,
+  View as SafeAreaView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  Alert,
+  Share
 } from "react-native";
 import { useRouter } from "expo-router";
+import * as Haptics from 'expo-haptics';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATARS = ["🏃", "🚶", "⚡", "🔥", "💪", "🎯", "🏆", "👟"];
@@ -22,22 +26,28 @@ const GOALS = [
   "Daily Average",
   "Weekly Milestone",
 ];
-const LEAGUE_CODE =
-  "STRIDE-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+const generateLeagueCode = () => "STRIDE-" + Math.random().toString(36).substr(2, 6).toUpperCase();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const FieldLabel = ({ label }: { label: string }) => (
-  <Text style={styles.fieldLabel}>{label}</Text>
-);
+const FieldLabel = ({ label }: { label: string }) => (<Text style={styles.fieldLabel}>{label}</Text>);
+
 const Divider = () => <View style={styles.divider} />;
+
+const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function League() {
   const router = useRouter();
   
   const [step, setStep] = useState(1);
+  const [leagueName, setLeagueName] = useState("");
+  const [LeagueCode] = useState(generateLeagueCode());
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const textInputRef = useRef(null);
+
   const [league, setLeague] = useState({
-    name: "",
     avatar: "🏆",
     duration: "1 Week",
     goal: "Most Steps Wins",
@@ -49,35 +59,65 @@ export default function League() {
   const [copied, setCopied] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
 
+  const handleNext = () => {
+    if(leagueName.trim().length < 3) {
+      setErrors((prev) => ({ ...prev, leagueName: "League name must be at least 3 characters long." }));
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setStep(2);
+  };
   const handleAddInvite = () => {
     const trimmed = inviteEmail.trim();
-    if (trimmed && !invites.includes(trimmed)) {
-      setInvites((prev) => [...prev, trimmed]);
-      setInviteEmail("");
+    if(!validateEmail(trimmed)) {
+      setErrors((p) => ({ ...p, email: "Please enter a valid email address." }));
+      return;
     }
+
+     if (!invites.includes(trimmed)) 
+      {
+        setInvites((prev) => [...prev, trimmed]);
+      }
+
+    setInviteEmail("");
+    setErrors((p) => ({ ...p, email: "" }));
   };
 
   const handleRemoveInvite = (email: string) => {
-    setInvites((prev) => prev.filter((i) => i !== email));
+    setInvites((prev) => prev.filter((inv) => inv !== email));
   };
 
   const handleCopy = () => {
-    Clipboard.setString(LEAGUE_CODE);
+    Clipboard.setString(LeagueCode);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleShare = () => {
+    Share.share({message: `Join my League! Use code ${LeagueCode} to join and start stepping!`,});
+  };
+
   const handleReset = () => {
-    setStep(1);
-    setInvites([]);
-    setLeague({
-      name: "",
-      avatar: "🏆",
-      duration: "1 Week",
-      goal: "Most Steps Wins",
-      stepTarget: "10000",
-      isPrivate: true,
-    });
+    Alert.alert("Reset League Creation", "Are you sure you want to reset? All progress will be lost.", [
+      {text: "Cancel"},
+      {
+        text: "Reset",
+        style: "destructive",
+        onPress: () => {
+          setStep(1);
+          setLeagueName("");
+          setInvites([]);
+          setLeague({
+            avatar: "🏆",
+            duration: "1 Week",
+            goal: "Most Steps Wins",
+            stepTarget: "10000",
+            isPrivate: true,
+          });
+        },
+      },
+    ]);
   };
 
   const progress = (step / 3) * 100;
@@ -116,21 +156,8 @@ export default function League() {
 
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        </View>
       </View>
-
-      <View style={styles.dots}>
-        {[1, 2, 3].map((i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              i === step && styles.dotActive,
-              i < step && styles.dotDone,
-            ]}
-          />
-        ))}
-      </View>
-    </View>
   );
 
   // ── Step 1 ───────────────────────────────────────────────────────────────────
@@ -140,15 +167,21 @@ export default function League() {
       <View style={styles.field}>
         <FieldLabel label="League Name" />
         <TextInput
+          ref={textInputRef}
           style={styles.input}
           placeholder="e.g. Office Walkers 2024"
           placeholderTextColor="#3a3a4a"
-          value={league.name}
-          onChangeText={(text) =>
-            setLeague((prev) => ({ ...prev, name: text }))
-          }
+          value={leagueName}
+          onChangeText={setLeagueName}
         />
       </View>
+
+      <TouchableOpacity
+        style={[styles.btnPrimary, !leagueName.trim() && styles.btnDisabled]}
+        onPress={handleNext}
+      >
+        <Text style={styles.btnPrimaryText}>Continue + invite friends</Text>
+      </TouchableOpacity>
 
       <View style={styles.field}>
         <FieldLabel label="League Icon" />
@@ -258,11 +291,7 @@ export default function League() {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.btnPrimary, !league.name && styles.btnDisabled]}
-        onPress={() => league.name && setStep(2)}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.shareBtn} onPressIn={handleShare}>
         <Text style={styles.btnPrimaryText}>Continue → Invite Friends</Text>
       </TouchableOpacity>
     </>
@@ -275,7 +304,7 @@ export default function League() {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryEmoji}>{league.avatar}</Text>
         <View style={styles.summaryInfo}>
-          <Text style={styles.summaryName}>{league.name}</Text>
+          <Text style={styles.summaryName}>{leagueName}</Text>
           <Text style={styles.summaryMeta}>
             {league.duration} · {league.goal}
           </Text>
@@ -329,7 +358,7 @@ export default function League() {
         <FieldLabel label="Or Share Invite Code" />
         <View style={styles.codeBox}>
           <Text style={styles.codeLabel}>League Code</Text>
-          <Text style={styles.codeValue}>{LEAGUE_CODE}</Text>
+          <Text style={styles.codeValue}>{LeagueCode}</Text>
           <View style={styles.shareBtns}>
             <TouchableOpacity
               style={[styles.shareBtn, copied && styles.shareBtnCopied]}
@@ -386,7 +415,7 @@ export default function League() {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryEmoji}>{league.avatar}</Text>
         <View style={styles.summaryInfo}>
-          <Text style={styles.summaryName}>{league.name}</Text>
+          <Text style={styles.summaryName}>{leagueName}</Text>
           <Text style={styles.summaryMeta}>
             {league.duration} · {league.goal} · {league.stepTarget} steps/day
           </Text>
@@ -397,7 +426,7 @@ export default function League() {
         <FieldLabel label="Your League Code" />
         <View style={styles.codeBox}>
           <Text style={styles.codeLabel}>Share this with friends</Text>
-          <Text style={styles.codeValue}>{LEAGUE_CODE}</Text>
+          <Text style={styles.codeValue}>{LeagueCode}</Text>
           <View style={styles.shareBtns}>
             <TouchableOpacity
               style={[styles.shareBtn, copied && styles.shareBtnCopied]}
@@ -456,19 +485,17 @@ export default function League() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader />
-
-      <ScrollView
+   <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       >
         <Header />
         {step === 1 && <Step1 />}
         {step === 2 && <Step2 />}
         {step === 3 && <Step3 />}
       </ScrollView>
-    </SafeAreaView>
   );
 }
 
