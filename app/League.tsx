@@ -1,23 +1,21 @@
-import Clipboard from "@react-native-clipboard/clipboard";
-import React, { useState, useRef } from "react";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
+import { useRef, useState } from "react";
 import {
+  Alert,
   Platform,
   ScrollView,
-  View as SafeAreaView,
+  Share,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  KeyboardAvoidingView,
-  Alert,
-  Share
 } from "react-native";
-import { useRouter } from "expo-router";
-import * as Haptics from 'expo-haptics';
 // ─── Constants ────────────────────────────────────────────────────────────────
-
+ 
 const AVATARS = ["🏃", "🚶", "⚡", "🔥", "💪", "🎯", "🏆", "👟"];
 const DURATIONS = ["1 Week", "2 Weeks", "1 Month", "3 Months"];
 const GOALS = [
@@ -26,27 +24,30 @@ const GOALS = [
   "Daily Average",
   "Weekly Milestone",
 ];
-
-const generateLeagueCode = () => "STRIDE-" + Math.random().toString(36).substr(2, 6).toUpperCase();
-
+ 
+const generateLeagueCode = () =>
+  "STRIDE-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+ 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const FieldLabel = ({ label }: { label: string }) => (<Text style={styles.fieldLabel}>{label}</Text>);
-
+const FieldLabel = ({ label }: { label: string }) => (
+  <Text style={styles.fieldLabel}>{label}</Text>
+);
+ 
 const Divider = () => <View style={styles.divider} />;
-
+ 
 const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
-
+ 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function League() {
   const router = useRouter();
-  
+ 
   const [step, setStep] = useState(1);
   const [leagueName, setLeagueName] = useState("");
   const [LeagueCode] = useState(generateLeagueCode());
-  
+ 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const textInputRef = useRef(null);
-
+ 
   const [league, setLeague] = useState({
     avatar: "🏆",
     duration: "1 Week",
@@ -58,10 +59,13 @@ export default function League() {
   const [invites, setInvites] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
-
+ 
   const handleNext = () => {
-    if(leagueName.trim().length < 3) {
-      setErrors((prev) => ({ ...prev, leagueName: "League name must be at least 3 characters long." }));
+    if (leagueName.trim().length < 3) {
+      setErrors((prev) => ({
+        ...prev,
+        leagueName: "League name must be at least 3 characters long.",
+      }));
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -69,59 +73,67 @@ export default function League() {
   };
   const handleAddInvite = () => {
     const trimmed = inviteEmail.trim();
-    if(!validateEmail(trimmed)) {
-      setErrors((p) => ({ ...p, email: "Please enter a valid email address." }));
+    if (!validateEmail(trimmed)) {
+      setErrors((p) => ({
+        ...p,
+        email: "Please enter a valid email address.",
+      }));
       return;
     }
-
-     if (!invites.includes(trimmed)) 
-      {
-        setInvites((prev) => [...prev, trimmed]);
-      }
-
+ 
+    if (!invites.includes(trimmed)) {
+      setInvites((prev) => [...prev, trimmed]);
+    }
+ 
     setInviteEmail("");
     setErrors((p) => ({ ...p, email: "" }));
   };
-
+ 
   const handleRemoveInvite = (email: string) => {
     setInvites((prev) => prev.filter((inv) => inv !== email));
   };
-
+ 
   const handleCopy = () => {
-    Clipboard.setString(LeagueCode);
+    Clipboard.setStringAsync(LeagueCode);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
+ 
   const handleShare = () => {
-    Share.share({message: `Join my League! Use code ${LeagueCode} to join and start stepping!`,});
+    Share.share({
+      message: `Join my League! Use code ${LeagueCode} to join and start stepping!`,
+    });
   };
-
+ 
   const handleReset = () => {
-    Alert.alert("Reset League Creation", "Are you sure you want to reset? All progress will be lost.", [
-      {text: "Cancel"},
-      {
-        text: "Reset",
-        style: "destructive",
-        onPress: () => {
-          setStep(1);
-          setLeagueName("");
-          setInvites([]);
-          setLeague({
-            avatar: "🏆",
-            duration: "1 Week",
-            goal: "Most Steps Wins",
-            stepTarget: "10000",
-            isPrivate: true,
-          });
+    Alert.alert(
+      "Reset League Creation",
+      "Are you sure you want to reset? All progress will be lost.",
+      [
+        { text: "Cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: () => {
+            setStep(1);
+            setLeagueName("");
+            setInvites([]);
+            setLeague({
+              avatar: "🏆",
+              duration: "1 Week",
+              goal: "Most Steps Wins",
+              stepTarget: "10000",
+              isPrivate: true,
+            });
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
-
+ 
   const progress = (step / 3) * 100;
-
+ 
   const stepTitles = ["League Setup", "Invite Friends", "Share & Launch"];
   const titles = ["Create a League", "Invite Your Crew", "League is Ready 🎉"];
   const subtitles = [
@@ -129,22 +141,22 @@ export default function League() {
     "Add friends by email or share the code",
     "Share with friends and start competing",
   ];
-
+ 
   // ── Custome screen header with back button ─────────────────────────────────────────────────────────────
   const ScreenHeader = () => (
     <View style={styles.screenHeader}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
-
+ 
       <Text style={styles.screenHeaderTitle}>Create New League</Text>
-
+ 
       <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
         <Text style={styles.resetText}>Reset</Text>
       </TouchableOpacity>
     </View>
   );
-
+ 
   // ── Header ───────────────────────────────────────────────────────────────────
   const Header = () => (
     <View style={styles.header}>
@@ -153,15 +165,15 @@ export default function League() {
       </Text>
       <Text style={styles.title}>{titles[step - 1]}</Text>
       <Text style={styles.subtitle}>{subtitles[step - 1]}</Text>
-
+ 
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
       </View>
+    </View>
   );
-
+ 
   // ── Step 1 ───────────────────────────────────────────────────────────────────
-
+ 
   const Step1 = () => (
     <>
       <View style={styles.field}>
@@ -175,14 +187,14 @@ export default function League() {
           onChangeText={setLeagueName}
         />
       </View>
-
+ 
       <TouchableOpacity
         style={[styles.btnPrimary, !leagueName.trim() && styles.btnDisabled]}
         onPress={handleNext}
       >
         <Text style={styles.btnPrimaryText}>Continue + invite friends</Text>
       </TouchableOpacity>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="League Icon" />
         <TouchableOpacity
@@ -194,7 +206,7 @@ export default function League() {
           <Text style={styles.avatarText}>Tap to change icon</Text>
           <Text style={styles.avatarChevron}>{avatarOpen ? "▴" : "▾"}</Text>
         </TouchableOpacity>
-
+ 
         {avatarOpen && (
           <View style={styles.avatarGrid}>
             {AVATARS.map((a) => (
@@ -216,7 +228,7 @@ export default function League() {
           </View>
         )}
       </View>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Duration" />
         <View style={styles.pillGroup}>
@@ -239,7 +251,7 @@ export default function League() {
           ))}
         </View>
       </View>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Win Condition" />
         <View style={styles.pillGroup}>
@@ -262,7 +274,7 @@ export default function League() {
           ))}
         </View>
       </View>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Daily Step Target" />
         <TextInput
@@ -274,7 +286,7 @@ export default function League() {
           onChangeText={(text) => setLeague({ ...league, stepTarget: text })}
         />
       </View>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Privacy" />
         <View style={styles.toggleRow}>
@@ -290,15 +302,15 @@ export default function League() {
           />
         </View>
       </View>
-
+ 
       <TouchableOpacity style={styles.shareBtn} onPressIn={handleShare}>
         <Text style={styles.btnPrimaryText}>Continue → Invite Friends</Text>
       </TouchableOpacity>
     </>
   );
-
+ 
   // ── Step 2 ───────────────────────────────────────────────────────────────────
-
+ 
   const Step2 = () => (
     <>
       <View style={styles.summaryCard}>
@@ -314,7 +326,7 @@ export default function League() {
           <Text style={styles.memberText}>MEMBERS</Text>
         </View>
       </View>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Invite by Email" />
         <View style={styles.inviteRow}>
@@ -337,7 +349,7 @@ export default function League() {
             <Text style={styles.addBtnText}>+</Text>
           </TouchableOpacity>
         </View>
-
+ 
         {invites.length > 0 && (
           <View style={styles.chipList}>
             {invites.map((inv) => (
@@ -351,9 +363,9 @@ export default function League() {
           </View>
         )}
       </View>
-
+ 
       <Divider />
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Or Share Invite Code" />
         <View style={styles.codeBox}>
@@ -380,7 +392,7 @@ export default function League() {
           </View>
         </View>
       </View>
-
+ 
       <TouchableOpacity
         style={styles.btnPrimary}
         onPress={() => setStep(3)}
@@ -401,9 +413,9 @@ export default function League() {
       </TouchableOpacity>
     </>
   );
-
+ 
   // ── Step 3 ───────────────────────────────────────────────────────────────────
-
+ 
   const Step3 = () => (
     <>
       <View style={styles.successBadge}>
@@ -411,7 +423,7 @@ export default function League() {
           ✦ League Created Successfully
         </Text>
       </View>
-
+ 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryEmoji}>{league.avatar}</Text>
         <View style={styles.summaryInfo}>
@@ -421,7 +433,7 @@ export default function League() {
           </Text>
         </View>
       </View>
-
+ 
       <View style={styles.field}>
         <FieldLabel label="Your League Code" />
         <View style={styles.codeBox}>
@@ -451,7 +463,7 @@ export default function League() {
           </View>
         </View>
       </View>
-
+ 
       {invites.length > 0 && (
         <View style={styles.field}>
           <FieldLabel label={`Invites Sent (${invites.length})`} />
@@ -464,7 +476,7 @@ export default function League() {
           </View>
         </View>
       )}
-
+ 
       <TouchableOpacity
         style={styles.btnPrimary}
         onPress={handleReset}
@@ -481,26 +493,26 @@ export default function League() {
       </TouchableOpacity>
     </>
   );
-
+ 
   // ── Render ────────────────────────────────────────────────────────────────────
-
+ 
   return (
-   <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Header />
-        {step === 1 && <Step1 />}
-        {step === 2 && <Step2 />}
-        {step === 3 && <Step3 />}
-      </ScrollView>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Header />
+      {step === 1 && <Step1 />}
+      {step === 2 && <Step2 />}
+      {step === 3 && <Step3 />}
+    </ScrollView>
   );
 }
-
+ 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-
+ 
 const C = {
   bg: "#0a0a0f",
   card: "#111118",
@@ -516,7 +528,7 @@ const C = {
   textDim: "#4a4a5a",
   textDark: "#3a3a4a",
 };
-
+ 
 const styles = StyleSheet.create({
   screenHeader: {
     flexDirection: "row",
@@ -528,29 +540,29 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1e1e2e",
     backgroundColor: "#111118",
   },
-
+ 
   backButton: {
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
-
+ 
   backText: {
     color: C.blue,
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
   },
-
+ 
   screenHeaderTitle: {
     color: C.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
-
+ 
   resetButton: {
     paddingVertical: 8,
     paddingHorizontal: 8,
   },
-  
+ 
   resetText: {
     color: C.textMuted,
     fontSize: 15,
@@ -568,7 +580,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     paddingHorizontal: 16,
   },
-
+ 
   card: {
     width: "100%",
     maxWidth: 480,
@@ -587,7 +599,7 @@ const styles = StyleSheet.create({
       android: { elevation: 20 },
     }),
   },
-
+ 
   header: {
     backgroundColor: "#16213e",
     paddingHorizontal: 28,
@@ -644,7 +656,7 @@ const styles = StyleSheet.create({
   dotDone: {
     backgroundColor: C.purple,
   },
-
+ 
   body: {
     padding: 24,
   },
@@ -659,7 +671,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 8,
   },
-
+ 
   input: {
     width: "100%",
     backgroundColor: C.surface,
@@ -671,7 +683,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: C.textSecondary,
   },
-
+ 
   avatarTrigger: {
     flexDirection: "row",
     alignItems: "center",
@@ -711,7 +723,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(74,158,255,0.08)",
   },
   avatarOptText: { fontSize: 24 },
-
+ 
   pillGroup: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -736,7 +748,7 @@ const styles = StyleSheet.create({
   pillTextActive: {
     color: C.blue,
   },
-
+ 
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -758,7 +770,7 @@ const styles = StyleSheet.create({
     color: C.textDim,
     marginTop: 2,
   },
-
+ 
   btnPrimary: {
     backgroundColor: C.blue,
     borderRadius: 14,
@@ -788,7 +800,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-
+ 
   inviteRow: {
     flexDirection: "row",
   },
@@ -813,7 +825,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "400",
   },
-
+ 
   chipList: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -853,7 +865,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.green,
   },
-
+ 
   codeBox: {
     backgroundColor: C.surface,
     borderWidth: 1,
@@ -903,7 +915,7 @@ const styles = StyleSheet.create({
   shareBtnTextCopied: {
     color: C.green,
   },
-
+ 
   summaryCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -939,7 +951,7 @@ const styles = StyleSheet.create({
     color: C.textDim,
     letterSpacing: 0.8,
   },
-
+ 
   successBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
@@ -955,7 +967,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: C.green,
   },
-
+ 
   divider: {
     height: 1,
     backgroundColor: C.border,
