@@ -14,6 +14,7 @@ interface StepsLineChartProps {
   goalLineColor: string;
   axisColor: string;
   labelColor: string;
+  labelStride?: number;
 }
 
 const CHART_WIDTH = 340;
@@ -40,6 +41,7 @@ export function StepsLineChart({
   goalLineColor,
   axisColor,
   labelColor,
+  labelStride = 1,
 }: StepsLineChartProps) {
   const innerWidth = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const innerHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
@@ -66,6 +68,7 @@ export function StepsLineChart({
     .join(" ");
 
   const goalY = yForValue(goalValue);
+  const safeLabelStride = Math.max(Math.floor(labelStride), 1);
 
   return (
     <View style={styles.container}>
@@ -116,6 +119,13 @@ export function StepsLineChart({
         })}
 
         {points.map((point, index) => {
+          const shouldShowLabel =
+            index === 0 || index === points.length - 1 || index % safeLabelStride === 0;
+
+          if (!shouldShowLabel) {
+            return null;
+          }
+
           const x = xForIndex(index);
           const dateLabel = point.date ? formatPointDate(point.date) : "";
 

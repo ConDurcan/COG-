@@ -13,6 +13,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthService, DailyStepPoint } from "@/services/auth-service";
 
 const HISTORY_DAYS = 7;
+const HISTORY_RANGE_OPTIONS = [7, 30, 90] as const;
 
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function ProfileScreen() {
   const [history, setHistory] = useState<DailyStepPoint[]>([]);
   const [streak, setStreak] = useState(0);
   const [isSharing, setIsSharing] = useState(false);
+  const [selectedHistoryDays, setSelectedHistoryDays] = useState<number>(HISTORY_DAYS);
 
   useEffect(() => {
     let isMounted = true;
@@ -42,7 +44,7 @@ export default function ProfileScreen() {
       try {
         setIsLoading(true);
         setError(null);
-        const points = await AuthService.getDailyStepHistory(user.id, HISTORY_DAYS);
+        const points = await AuthService.getDailyStepHistory(user.id, selectedHistoryDays);
         const liveTodaySteps = await getTodayLiveSteps();
         const mergedPoints = mergeTodaySteps(points, liveTodaySteps);
         const currentStreakCount = await AuthService.getCurrentStreakCount(
@@ -70,7 +72,19 @@ export default function ProfileScreen() {
     return () => {
       isMounted = false;
     };
-  }, [user, stepGoal]);
+  }, [selectedHistoryDays, stepGoal, user]);
+
+  const labelStride = useMemo(() => {
+    if (history.length <= 10) {
+      return 1;
+    }
+
+    if (history.length <= 45) {
+      return 4;
+    }
+
+    return 9;
+  }, [history.length]);
 
   const currentSteps = useMemo(() => {
     if (history.length === 0) {
@@ -102,7 +116,7 @@ export default function ProfileScreen() {
         );
 
         const historySummary = history
-          .slice(-HISTORY_DAYS)
+          .slice(-selectedHistoryDays)
           .map((point) => `${point.label} ${point.date}: ${point.steps.toLocaleString()}`)
           .join("\n");
 
@@ -111,7 +125,7 @@ export default function ProfileScreen() {
             "My Compfit progress snapshot",
             `Current steps: ${currentSteps.toLocaleString()}`,
             `Streak: ${streak} days`,
-            "Last 7 days:",
+            `Last ${selectedHistoryDays} days:`,
             historySummary,
           ].join("\n"),
         });
@@ -128,7 +142,39 @@ export default function ProfileScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Profile</ThemedText>
-      <ThemedText style={styles.subtitle}>Steps trend from the last 7 days</ThemedText>
+      <ThemedText style={styles.subtitle}>
+        Steps trend from the last {selectedHistoryDays} days
+      </ThemedText>
+
+      <View style={styles.rangeControlsRow}>
+        <ThemedText style={styles.rangeControlsLabel}>Show past analytics</ThemedText>
+        <View style={styles.rangeButtonsRow}>
+          {HISTORY_RANGE_OPTIONS.map((rangeDays) => {
+            const isSelected = selectedHistoryDays === rangeDays;
+
+            return (
+              <Pressable
+                key={rangeDays}
+                accessibilityRole="button"
+                onPress={() => setSelectedHistoryDays(rangeDays)}
+                style={[
+                  styles.rangeButton,
+                  isSelected && styles.rangeButtonSelected,
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.rangeButtonText,
+                    isSelected && styles.rangeButtonTextSelected,
+                  ]}
+                >
+                  {rangeDays}D
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
@@ -163,6 +209,7 @@ export default function ProfileScreen() {
             goalLineColor="#ff7a00"
             axisColor={palette.icon}
             labelColor={palette.text}
+            labelStride={labelStride}
           />
 
           <View style={styles.summaryRow}>
@@ -264,6 +311,39 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     opacity: 0.8,
+  },
+  rangeControlsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  rangeControlsLabel: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+  rangeButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  rangeButton: {
+    borderColor: "#4d4d4d",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  rangeButtonSelected: {
+    borderColor: "#2e7dff",
+    backgroundColor: "#2e7dff",
+  },
+  rangeButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    opacity: 0.9,
+  },
+  rangeButtonTextSelected: {
+    color: "#ffffff",
+    opacity: 1,
   },
   legendRow: {
     alignItems: "center",
