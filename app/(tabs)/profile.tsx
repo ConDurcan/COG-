@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 12,
     paddingHorizontal: 16,
-    paddingTop: 24,
+    paddingTop: 64,
   },
   subtitle: {
     fontSize: 14,
