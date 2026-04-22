@@ -106,7 +106,11 @@ export default function ProfileScreen() {
       ) : (
         <>
           <StepsLineChart
-            points={history.map((point) => ({ label: point.label, value: point.steps }))}
+            points={history.map((point) => ({
+              label: point.label,
+              value: point.steps,
+              date: point.date,
+            }))}
             goalValue={stepGoal}
             lineColor={palette.tint}
             goalLineColor="#ff7a00"

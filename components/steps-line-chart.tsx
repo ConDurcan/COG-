@@ -4,6 +4,7 @@ import Svg, { Circle, Line, Polyline, Text as SvgText } from "react-native-svg";
 export interface StepChartPoint {
   label: string;
   value: number;
+  date?: string;
 }
 
 interface StepsLineChartProps {
@@ -19,8 +20,18 @@ const CHART_WIDTH = 340;
 const CHART_HEIGHT = 220;
 const PADDING_TOP = 20;
 const PADDING_RIGHT = 18;
-const PADDING_BOTTOM = 42;
+const PADDING_BOTTOM = 56;
 const PADDING_LEFT = 38;
+
+function formatPointDate(date: string): string {
+  const parsedDate = new Date(`${date}T00:00:00.000Z`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
+  }
+
+  return `${parsedDate.getUTCMonth() + 1}/${parsedDate.getUTCDate()}`;
+}
 
 export function StepsLineChart({
   points,
@@ -106,18 +117,34 @@ export function StepsLineChart({
 
         {points.map((point, index) => {
           const x = xForIndex(index);
+          const dateLabel = point.date ? formatPointDate(point.date) : "";
 
           return (
-            <SvgText
-              key={`label-${point.label}-${index}`}
-              x={x}
-              y={CHART_HEIGHT - 16}
-              fontSize="11"
-              fill={labelColor}
-              textAnchor="middle"
-            >
-              {point.label}
-            </SvgText>
+            [
+              <SvgText
+                key={`label-${point.label}-${index}`}
+                x={x}
+                y={CHART_HEIGHT - 28}
+                fontSize="11"
+                fill={labelColor}
+                textAnchor="middle"
+              >
+                {point.label}
+              </SvgText>,
+              dateLabel ? (
+                <SvgText
+                  key={`date-${point.label}-${index}`}
+                  x={x}
+                  y={CHART_HEIGHT - 14}
+                  fontSize="10"
+                  fill={labelColor}
+                  opacity={0.75}
+                  textAnchor="middle"
+                >
+                  {dateLabel}
+                </SvgText>
+              ) : null,
+            ]
           );
         })}
 
