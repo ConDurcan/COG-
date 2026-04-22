@@ -1,6 +1,7 @@
+import * as Linking from "expo-linking";
 import { Pedometer } from "expo-sensors";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, View } from "react-native";
 
 import { StepsLineChart } from "@/components/steps-line-chart";
 import { ThemedText } from "@/components/themed-text";
@@ -23,6 +24,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<DailyStepPoint[]>([]);
   const [streak, setStreak] = useState(0);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,6 +80,51 @@ export default function ProfileScreen() {
     return history[history.length - 1]?.steps ?? 0;
   }, [history]);
 
+  const handleShareProgress = async () => {
+    if (!user) {
+      Alert.alert("Sign in required", "Please sign in before sharing progress.");
+      return;
+    }
+
+    try {
+      setIsSharing(true);
+      const shareCode = await AuthService.createOrGetProgressShareCode(user.id);
+      const shareUrl = Linking.createURL(`/share/${shareCode}`);
+
+      await Share.share({
+        message: `Track my Compfit progress: ${shareUrl}`,
+      });
+    } catch (shareError) {
+      try {
+        Alert.alert(
+          "Link share unavailable",
+          "We could not create a live share link. Using fallback snapshot sharing instead.",
+        );
+
+        const historySummary = history
+          .slice(-HISTORY_DAYS)
+          .map((point) => `${point.label} ${point.date}: ${point.steps.toLocaleString()}`)
+          .join("\n");
+
+        await Share.share({
+          message: [
+            "My Compfit progress snapshot",
+            `Current steps: ${currentSteps.toLocaleString()}`,
+            `Streak: ${streak} days`,
+            "Last 7 days:",
+            historySummary,
+          ].join("\n"),
+        });
+      } catch {
+        const message =
+          shareError instanceof Error ? shareError.message : "Could not share your progress right now.";
+        Alert.alert("Share failed", message);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Profile</ThemedText>
@@ -128,6 +175,17 @@ export default function ProfileScreen() {
           <View style={styles.streakRow}>
             <ThemedText type="defaultSemiBold">Streak: {streak} days</ThemedText>
           </View>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSharing}
+            onPress={handleShareProgress}
+            style={[styles.shareButton, isSharing && styles.shareButtonDisabled]}
+          >
+            <ThemedText type="defaultSemiBold" style={styles.shareButtonText}>
+              {isSharing ? "Preparing link..." : "Share progress"}
+            </ThemedText>
+          </Pressable>
         </>
       )}
     </ThemedView>
@@ -243,5 +301,20 @@ const styles = StyleSheet.create({
   },
   streakRow: {
     marginTop: 8,
+  },
+  shareButton: {
+    alignItems: "center",
+    borderColor: "#2e7dff",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  shareButtonDisabled: {
+    opacity: 0.6,
+  },
+  shareButtonText: {
+    color: "#2e7dff",
   },
 });
