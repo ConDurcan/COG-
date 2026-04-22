@@ -1,7 +1,7 @@
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
+    DarkTheme,
+    DefaultTheme,
+    ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -43,6 +43,10 @@ function AppNavigator() {
       <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack.Protected>
+      <Stack.Screen
+        name="share/[code]"
+        options={{ title: "Shared Progress" }}
+      />
       <Stack.Screen
         name="modal"
         options={{ presentation: "modal", title: "Modal" }}

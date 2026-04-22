@@ -28,6 +28,12 @@ export interface DailyStepPoint {
   steps: number;
 }
 
+export interface PublicProgressSnapshot {
+  displayName: string;
+  streak: number;
+  history: DailyStepPoint[];
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -294,7 +300,108 @@ export const AuthService = {
 
     return history;
   },
+
+  async createOrGetProgressShareCode(userId: string): Promise<string> {
+    const { data: existingShare, error: existingError } = await supabase
+      .from("progress_shares")
+      .select("share_code")
+      .eq("owner_user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (existingError) {
+      throw new Error(existingError.message);
+    }
+
+    if (existingShare?.share_code) {
+      return existingShare.share_code;
+    }
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const candidateCode = generateProgressShareCode();
+
+      const { data: createdShare, error: createError } = await supabase
+        .from("progress_shares")
+        .insert({
+          owner_user_id: userId,
+          share_code: candidateCode,
+          is_active: true,
+        })
+        .select("share_code")
+        .single();
+
+      if (!createError && createdShare?.share_code) {
+        return createdShare.share_code;
+      }
+
+      if (createError?.code === "23505") {
+        continue;
+      }
+
+      throw new Error(createError?.message ?? "Could not create share code");
+    }
+
+    throw new Error("Could not generate a unique share code");
+  },
+
+  async revokeProgressShareCode(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("progress_shares")
+      .update({ is_active: false })
+      .eq("owner_user_id", userId)
+      .eq("is_active", true);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  async getPublicProgressByCode(shareCode: string): Promise<PublicProgressSnapshot> {
+    const safeCode = shareCode.trim().toUpperCase();
+
+    const { data, error } = await supabase.rpc("get_public_progress_snapshot", {
+      input_share_code: safeCode,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error("This shared progress link is invalid or expired.");
+    }
+
+    const displayName =
+      typeof data[0].display_name === "string" && data[0].display_name.length > 0
+        ? data[0].display_name
+        : "Compfit User";
+    const streak = Number.isFinite(Number(data[0].streak)) ? Number(data[0].streak) : 0;
+
+    const history: DailyStepPoint[] = data.map((row) => ({
+      date: String(row.date_key),
+      label: String(row.label),
+      steps: Number.isFinite(Number(row.steps)) ? Number(row.steps) : 0,
+    }));
+
+    return {
+      displayName,
+      streak,
+      history,
+    };
+  },
 };
+
+function generateProgressShareCode(length = 8): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+
+  for (let i = 0; i < length; i += 1) {
+    const randomIndex = Math.floor(Math.random() * alphabet.length);
+    code += alphabet[randomIndex];
+  }
+
+  return code;
+}
 
 async function calculateCurrentStreak(userId: string, stepGoal = STEP_GOAL_STEPS): Promise<number> {
   const { data, error } = await supabase

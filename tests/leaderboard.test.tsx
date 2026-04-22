@@ -15,6 +15,8 @@ describe("LeaderboardScreen UI", () => {
     expect(screen.getByTestId("rank-name-1").props.children).toBe("Mia");
     expect(screen.getByTestId("rank-name-2").props.children).toBe("You");
     expect(screen.getByTestId("rank-name-3").props.children).toBe("Luca");
+    expect(screen.getByText("Score date")).toBeTruthy();
+    expect(screen.getByText("Apr 22")).toBeTruthy();
   });
 
   it("shows live race gap text", () => {

@@ -2,6 +2,7 @@ import {
     DAILY_GOAL,
     buildLeaderboardState,
     competitors,
+    formatScoreDate,
     formatSteps,
     type Competitor,
 } from "@/utils/leaderboard-utils";
@@ -40,6 +41,7 @@ describe("leaderboard utils", () => {
         steps: DAILY_GOAL + 2500,
         streak: 1,
         isOnline: true,
+        scoreDate: "2026-04-22",
       },
       {
         id: 11,
@@ -47,6 +49,7 @@ describe("leaderboard utils", () => {
         steps: DAILY_GOAL + 5000,
         streak: 1,
         isOnline: true,
+        scoreDate: "2026-04-21",
       },
     ];
 
@@ -58,5 +61,9 @@ describe("leaderboard utils", () => {
 
   it("formats steps with locale separators", () => {
     expect(formatSteps(12000)).toBe("12,000");
+  });
+
+  it("formats score date for leaderboard labels", () => {
+    expect(formatScoreDate("2026-04-22")).toBe("Apr 22");
   });
 });

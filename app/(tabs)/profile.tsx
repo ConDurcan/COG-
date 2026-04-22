@@ -1,6 +1,7 @@
+import * as Linking from "expo-linking";
 import { Pedometer } from "expo-sensors";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, View } from "react-native";
 
 import { StepsLineChart } from "@/components/steps-line-chart";
 import { ThemedText } from "@/components/themed-text";
@@ -12,6 +13,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthService, DailyStepPoint } from "@/services/auth-service";
 
 const HISTORY_DAYS = 7;
+const HISTORY_RANGE_OPTIONS = [7, 30, 90] as const;
 
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -23,6 +25,8 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<DailyStepPoint[]>([]);
   const [streak, setStreak] = useState(0);
+  const [isSharing, setIsSharing] = useState(false);
+  const [selectedHistoryDays, setSelectedHistoryDays] = useState<number>(HISTORY_DAYS);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,7 +44,7 @@ export default function ProfileScreen() {
       try {
         setIsLoading(true);
         setError(null);
-        const points = await AuthService.getDailyStepHistory(user.id, HISTORY_DAYS);
+        const points = await AuthService.getDailyStepHistory(user.id, selectedHistoryDays);
         const liveTodaySteps = await getTodayLiveSteps();
         const mergedPoints = mergeTodaySteps(points, liveTodaySteps);
         const currentStreakCount = await AuthService.getCurrentStreakCount(
@@ -68,7 +72,19 @@ export default function ProfileScreen() {
     return () => {
       isMounted = false;
     };
-  }, [user, stepGoal]);
+  }, [selectedHistoryDays, stepGoal, user]);
+
+  const labelStride = useMemo(() => {
+    if (history.length <= 10) {
+      return 1;
+    }
+
+    if (history.length <= 45) {
+      return 4;
+    }
+
+    return 9;
+  }, [history.length]);
 
   const currentSteps = useMemo(() => {
     if (history.length === 0) {
@@ -78,10 +94,87 @@ export default function ProfileScreen() {
     return history[history.length - 1]?.steps ?? 0;
   }, [history]);
 
+  const handleShareProgress = async () => {
+    if (!user) {
+      Alert.alert("Sign in required", "Please sign in before sharing progress.");
+      return;
+    }
+
+    try {
+      setIsSharing(true);
+      const shareCode = await AuthService.createOrGetProgressShareCode(user.id);
+      const shareUrl = Linking.createURL(`/share/${shareCode}`);
+
+      await Share.share({
+        message: `Track my Compfit progress: ${shareUrl}`,
+      });
+    } catch (shareError) {
+      try {
+        Alert.alert(
+          "Link share unavailable",
+          "We could not create a live share link. Using fallback snapshot sharing instead.",
+        );
+
+        const historySummary = history
+          .slice(-selectedHistoryDays)
+          .map((point) => `${point.label} ${point.date}: ${point.steps.toLocaleString()}`)
+          .join("\n");
+
+        await Share.share({
+          message: [
+            "My Compfit progress snapshot",
+            `Current steps: ${currentSteps.toLocaleString()}`,
+            `Streak: ${streak} days`,
+            `Last ${selectedHistoryDays} days:`,
+            historySummary,
+          ].join("\n"),
+        });
+      } catch {
+        const message =
+          shareError instanceof Error ? shareError.message : "Could not share your progress right now.";
+        Alert.alert("Share failed", message);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Profile</ThemedText>
-      <ThemedText style={styles.subtitle}>Steps trend from the last 7 days</ThemedText>
+      <ThemedText style={styles.subtitle}>
+        Steps trend from the last {selectedHistoryDays} days
+      </ThemedText>
+
+      <View style={styles.rangeControlsRow}>
+        <ThemedText style={styles.rangeControlsLabel}>Show past analytics</ThemedText>
+        <View style={styles.rangeButtonsRow}>
+          {HISTORY_RANGE_OPTIONS.map((rangeDays) => {
+            const isSelected = selectedHistoryDays === rangeDays;
+
+            return (
+              <Pressable
+                key={rangeDays}
+                accessibilityRole="button"
+                onPress={() => setSelectedHistoryDays(rangeDays)}
+                style={[
+                  styles.rangeButton,
+                  isSelected && styles.rangeButtonSelected,
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.rangeButtonText,
+                    isSelected && styles.rangeButtonTextSelected,
+                  ]}
+                >
+                  {rangeDays}D
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
@@ -106,12 +199,17 @@ export default function ProfileScreen() {
       ) : (
         <>
           <StepsLineChart
-            points={history.map((point) => ({ label: point.label, value: point.steps }))}
+            points={history.map((point) => ({
+              label: point.label,
+              value: point.steps,
+              date: point.date,
+            }))}
             goalValue={stepGoal}
             lineColor={palette.tint}
             goalLineColor="#ff7a00"
             axisColor={palette.icon}
             labelColor={palette.text}
+            labelStride={labelStride}
           />
 
           <View style={styles.summaryRow}>
@@ -124,6 +222,17 @@ export default function ProfileScreen() {
           <View style={styles.streakRow}>
             <ThemedText type="defaultSemiBold">Streak: {streak} days</ThemedText>
           </View>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSharing}
+            onPress={handleShareProgress}
+            style={[styles.shareButton, isSharing && styles.shareButtonDisabled]}
+          >
+            <ThemedText type="defaultSemiBold" style={styles.shareButtonText}>
+              {isSharing ? "Preparing link..." : "Share progress"}
+            </ThemedText>
+          </Pressable>
         </>
       )}
     </ThemedView>
@@ -197,11 +306,44 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 12,
     paddingHorizontal: 16,
-    paddingTop: 24,
+    paddingTop: 64,
   },
   subtitle: {
     fontSize: 14,
     opacity: 0.8,
+  },
+  rangeControlsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  rangeControlsLabel: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+  rangeButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  rangeButton: {
+    borderColor: "#4d4d4d",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  rangeButtonSelected: {
+    borderColor: "#2e7dff",
+    backgroundColor: "#2e7dff",
+  },
+  rangeButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    opacity: 0.9,
+  },
+  rangeButtonTextSelected: {
+    color: "#ffffff",
+    opacity: 1,
   },
   legendRow: {
     alignItems: "center",
@@ -239,5 +381,20 @@ const styles = StyleSheet.create({
   },
   streakRow: {
     marginTop: 8,
+  },
+  shareButton: {
+    alignItems: "center",
+    borderColor: "#2e7dff",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  shareButtonDisabled: {
+    opacity: 0.6,
+  },
+  shareButtonText: {
+    color: "#2e7dff",
   },
 });

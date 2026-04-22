@@ -7,6 +7,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
     buildLeaderboardState,
     competitors,
+    formatScoreDate,
     formatSteps,
 } from "@/utils/leaderboard-utils";
 
@@ -74,6 +75,12 @@ export default function LeaderboardScreen() {
             <View>
               <ThemedText style={styles.heroMetaLabel}>Your rank</ThemedText>
               <ThemedText style={styles.heroMetaValue}>#{yourRank}</ThemedText>
+            </View>
+            <View>
+              <ThemedText style={styles.heroMetaLabel}>Score date</ThemedText>
+              <ThemedText style={styles.heroMetaValue}>
+                {formatScoreDate(leader.scoreDate)}
+              </ThemedText>
             </View>
             <View>
               <ThemedText style={styles.heroMetaLabel}>Gap to #1</ThemedText>
@@ -182,6 +189,9 @@ export default function LeaderboardScreen() {
                 <View style={styles.rankRight}>
                   <ThemedText style={styles.rankSteps}>
                     {formatSteps(person.steps)}
+                  </ThemedText>
+                  <ThemedText style={styles.rankDate}>
+                    {formatScoreDate(person.scoreDate)}
                   </ThemedText>
                   <View
                     style={[
@@ -343,6 +353,10 @@ const styles = StyleSheet.create({
   },
   rankSteps: {
     fontWeight: "700",
+  },
+  rankDate: {
+    fontSize: 12,
+    opacity: 0.72,
   },
   statusDot: {
     width: 10,
