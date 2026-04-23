@@ -1,4 +1,6 @@
+import * as Clipboard from "expo-clipboard";
 import * as Linking from "expo-linking";
+import { useRouter } from "expo-router";
 import { Pedometer } from "expo-sensors";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, View } from "react-native";
@@ -16,6 +18,7 @@ const HISTORY_DAYS = 7;
 const HISTORY_RANGE_OPTIONS = [7, 30, 90] as const;
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const { stepGoal } = useStepGoal();
   const colorScheme = useColorScheme() ?? "light";
@@ -27,6 +30,10 @@ export default function ProfileScreen() {
   const [streak, setStreak] = useState(0);
   const [isSharing, setIsSharing] = useState(false);
   const [selectedHistoryDays, setSelectedHistoryDays] = useState<number>(HISTORY_DAYS);
+
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [isLoadingCode, setIsLoadingCode] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -73,6 +80,42 @@ export default function ProfileScreen() {
       isMounted = false;
     };
   }, [selectedHistoryDays, stepGoal, user]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadShareCode = async () => {
+      if (!user) {
+        if (isMounted) {
+          setShareCode(null);
+        }
+        return;
+      }
+
+      try {
+        setIsLoadingCode(true);
+        const code = await AuthService.createOrGetProgressShareCode(user.id);
+
+        if (isMounted) {
+          setShareCode(code);
+        }
+      } catch {
+        if (isMounted) {
+          setShareCode(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingCode(false);
+        }
+      }
+    };
+
+    void loadShareCode();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const labelStride = useMemo(() => {
     if (history.length <= 10) {
@@ -137,6 +180,71 @@ export default function ProfileScreen() {
     } finally {
       setIsSharing(false);
     }
+  };
+
+  const handleCopyCode = async () => {
+    if (!shareCode) return;
+
+    try {
+      await Clipboard.setStringAsync(shareCode);
+      Alert.alert("Copied!", "Share code copied to clipboard.");
+    } catch {
+      Alert.alert("Error", "Could not copy code to clipboard.");
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!user) return;
+
+    Alert.alert(
+      "Regenerate code?",
+      "A new code will be created, and the old one will no longer work.",
+      [
+        { text: "Cancel", onPress: () => {} },
+        {
+          text: "Regenerate",
+          onPress: async () => {
+            try {
+              setIsRegenerating(true);
+              await AuthService.revokeProgressShareCode(user.id);
+              const newCode = await AuthService.createOrGetProgressShareCode(user.id);
+              setShareCode(newCode);
+            } catch {
+              Alert.alert("Error", "Could not regenerate code.");
+            } finally {
+              setIsRegenerating(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleRevokeCode = async () => {
+    if (!user) return;
+
+    Alert.alert(
+      "Revoke code?",
+      "People won't be able to view your progress using the current code.",
+      [
+        { text: "Cancel", onPress: () => {} },
+        {
+          text: "Revoke",
+          onPress: async () => {
+            try {
+              await AuthService.revokeProgressShareCode(user.id);
+              setShareCode(null);
+            } catch {
+              Alert.alert("Error", "Could not revoke code.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleViewSomeoneProgress = () => {
+    router.push("/enter-code" as any);
   };
 
   return (
@@ -231,6 +339,55 @@ export default function ProfileScreen() {
           >
             <ThemedText type="defaultSemiBold" style={styles.shareButtonText}>
               {isSharing ? "Preparing link..." : "Share progress"}
+            </ThemedText>
+          </Pressable>
+
+          <View style={styles.codeSection}>
+            <ThemedText type="defaultSemiBold">Share Code</ThemedText>
+            {isLoadingCode ? (
+              <View style={styles.codeLoading}>
+                <ActivityIndicator size="small" color={palette.tint} />
+              </View>
+            ) : shareCode ? (
+              <>
+                <View style={[styles.codeCard, { borderColor: palette.tint }]}>
+                  <ThemedText style={styles.codeText}>{shareCode}</ThemedText>
+                </View>
+                <View style={styles.codeButtonsRow}>
+                  <Pressable
+                    style={[styles.codeButton, { borderColor: palette.tint }]}
+                    onPress={handleCopyCode}
+                  >
+                    <ThemedText style={[styles.codeButtonText, { color: palette.tint }]}>
+                      Copy
+                    </ThemedText>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.codeButton, { borderColor: palette.tint }]}
+                    disabled={isRegenerating}
+                    onPress={handleRegenerateCode}
+                  >
+                    <ThemedText style={[styles.codeButtonText, { color: palette.tint }]}>
+                      {isRegenerating ? "..." : "Regenerate"}
+                    </ThemedText>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.codeButton, styles.codeButtonDanger]}
+                    onPress={handleRevokeCode}
+                  >
+                    <ThemedText style={styles.codeButtonTextDanger}>Revoke</ThemedText>
+                  </Pressable>
+                </View>
+              </>
+            ) : null}
+          </View>
+
+          <Pressable
+            style={[styles.viewButton, { borderColor: palette.tint }]}
+            onPress={handleViewSomeoneProgress}
+          >
+            <ThemedText style={[styles.viewButtonText, { color: palette.tint }]}>
+              View someone's progress
             </ThemedText>
           </Pressable>
         </>
@@ -396,5 +553,63 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     color: "#2e7dff",
+  },
+  codeSection: {
+    gap: 8,
+    marginTop: 12,
+  },
+  codeLoading: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  codeCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  codeText: {
+    fontSize: 18,
+    fontWeight: "700",
+    fontFamily: "monospace",
+    letterSpacing: 2,
+  },
+  codeButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  codeButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flex: 1,
+    alignItems: "center",
+  },
+  codeButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  codeButtonDanger: {
+    borderColor: "#ff6b6b",
+  },
+  codeButtonTextDanger: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#ff6b6b",
+  },
+  viewButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  viewButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

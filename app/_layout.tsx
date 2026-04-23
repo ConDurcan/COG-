@@ -48,6 +48,10 @@ function AppNavigator() {
         options={{ title: "Shared Progress" }}
       />
       <Stack.Screen
+        name="enter-code"
+        options={{ title: "Enter Code" }}
+      />
+      <Stack.Screen
         name="modal"
         options={{ presentation: "modal", title: "Modal" }}
       />
