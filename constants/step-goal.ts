@@ -1,0 +1,1 @@
+export const STEP_GOAL_STEPS = 3000;
